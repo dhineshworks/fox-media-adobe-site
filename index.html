@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fox Media Adobe Site - Preset Generator</title>
+  <meta name="description" content="Generate Adobe activation messages easily with Fox Media's premium preset tool.">
+
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <!-- Main React App Script (JSX compiled in-browser via Babel) -->
+  <script type="text/plain" id="react-app-code">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── TYPES & CONSTANTS ──────────────────────────────────────────────────────
+    const DEFAULT_TEMPLATE = `🎨 Adobe Creative Cloud Yearly Plan Activated ✅
+
+Dear User,
+
+Your Adobe Creative Cloud Yearly Plan has been successfully activated.
+
+Please follow the steps below carefully to set up your account:
+
+🔹 Step-by-Step Instructions
+
+1. Log out from your Adobe account wherever (Chrome Browser, Edge Browser, Safari Browser) it's currently signed in.
+2. Log in again using your registered email ID:
+{{EMAIL}}
+3. Enter your password.
+   * If the password is not accepted, click "Reset your password" and create a new one.
+4. After logging in, follow the process carefully.
+5. Click Aqimo-FuturePoint
+6. Click Move your files to personal cloud storage.
+7. Choose {{TEAM_NAME}} to complete the setup.
+
+📦 Adobe Creative Cloud App Download Link:
+https://creativecloud.adobe.com/apps/download/creative-cloud`;
+
+    const DEFAULT_PRESET = {
+      id: "preset-adobe-cc",
+      name: "Adobe CC Activation",
+      description: "Adobe Creative Cloud Yearly Plan Activation template",
+      icon: "🎨",
+      template: DEFAULT_TEMPLATE,
+      fields: ["EMAIL", "TEAM_NAME"],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      generatedCount: 0,
+    };
+
+    const STORAGE_KEYS = {
+      HISTORY: "fma_history",
+      PRESETS: "fma_presets",
+      THEME: "fma_theme",
+    };
+
+    const WHATSAPP_NUMBER = "9865488886";
+    const WHATSAPP_LINK = `https://wa.me/91${WHATSAPP_NUMBER}?text=Hello%20Fox%20Media,%20I%20am%20contacting%20you%20regarding%20a%20new%20activation.`;
+
+    // ─── UTILITIES ───────────────────────────────────────────────────────────────
+    function generateId() {
+      return `id_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    function validateEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function loadFromStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveToStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch { }
+    }
+
+    // ─── TOAST SYSTEM ────────────────────────────────────────────────────────────
+    function ToastContainer({ toasts, remove }) {
+      return (
+        <div className="toast-container">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.type}`}>
+              <span className="toast-icon">
+                {t.type === "success" ? "✅" : t.type === "error" ? "❌" : "ℹ️"}
+              </span>
+              <span className="toast-msg">{t.message}</span>
+              <button className="toast-close" onClick={() => remove(t.id)}>×</button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function useToast() {
+      const [toasts, setToasts] = useState([]);
+      const add = useCallback((message, type = "success") => {
+        const id = generateId();
+        setToasts((prev) => [...prev, { id, message, type }]);
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+      }, []);
+      const remove = useCallback((id) => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, []);
+      return { toasts, add, remove };
+    }
+
+    // ─── ICONS ───────────────────────────────────────────────────────────────────
+    const Icon = {
+      Sun: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ),
+      Moon: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+      Copy: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      ),
+      Download: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      ),
+      Trash: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+        </svg>
+      ),
+      Search: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      ),
+      Refresh: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.95" />
+        </svg>
+      ),
+      Zap: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      ),
+      Plus: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      ),
+      Edit: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      ),
+      Duplicate: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15">
+          <rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+        </svg>
+      ),
+      Export: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+      ),
+      Import: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      ),
+      Layers: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
+        </svg>
+      ),
+      History: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.95" /><polyline points="12 7 12 12 15 15" />
+        </svg>
+      ),
+      Close: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      ),
+      Shield: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      ),
+      WhatsApp: () => (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.437.002 9.861-4.416 9.863-9.864.001-2.639-1.026-5.122-2.892-6.989-1.866-1.867-4.35-2.893-6.991-2.893-5.44 0-9.866 4.417-9.867 9.866-.001 1.928.498 3.81 1.448 5.416L1.871 20.2l4.776-1.046zm11.367-4.906c-.31-.156-1.834-.905-2.119-1.008-.285-.104-.493-.156-.701.156-.208.312-.807.104-.989.312-.182.208-.364.208-.674.052-.31-.156-1.312-.483-2.498-1.542-.924-.825-1.548-1.844-1.73-2.155-.182-.31-.02-.477.135-.632.14-.139.31-.362.466-.544.156-.182.208-.312.31-.52.104-.208.052-.39-.026-.546-.078-.156-.701-1.687-.961-2.311-.253-.607-.512-.525-.701-.535-.18-.01-.387-.011-.595-.011-.208 0-.547.078-.833.39-.286.312-1.092 1.066-1.092 2.6 0 1.534 1.118 3.016 1.273 3.224.156.208 2.198 3.358 5.326 4.704.744.32 1.325.512 1.777.656.748.238 1.43.204 1.969.124.6-.09 1.834-.751 2.094-1.441.26-.69.26-1.284.182-1.402-.078-.117-.286-.208-.596-.364z" />
+        </svg>
+      )
+    };
+
+    // ─── MODAL COMPONENT ──────────────────────────────────────────────────────────
+    function Modal({ open, onClose, title, children }) {
+      useEffect(() => {
+        if (open) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+        return () => { document.body.style.overflow = ""; };
+      }, [open]);
+      if (!open) return null;
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{title}</h3>
+              <button className="modal-close" onClick={onClose}><Icon.Close /></button>
+            </div>
+            <div className="modal-body">{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── PRESET EDITOR MODAL ──────────────────────────────────────────────────────
+    function PresetEditor({ preset, onSave, onClose }) {
+      const [form, setForm] = useState(
+        preset || {
+          name: "",
+          description: "",
+          icon: "📋",
+          template: "Dear User,\n\n{{EMAIL}}\n{{TEAM_NAME}}",
+          fields: ["EMAIL", "TEAM_NAME"],
+        }
+      );
+      const [rawFields, setRawFields] = useState((form.fields || []).join(", "));
+
+      const handleSave = () => {
+        if (!form.name.trim()) return;
+        const fields = rawFields
+          .split(",")
+          .map((f) => f.trim().toUpperCase().replace(/\s+/g, "_"))
+          .filter(Boolean);
+        onSave({ ...form, fields });
+      };
+
+      return (
+        <div className="preset-editor">
+          <div className="field-row">
+            <label className="field-label">Icon</label>
+            <input
+              className="input-field"
+              style={{ width: 60, textAlign: "center", fontSize: "1.5rem" }}
+              value={form.icon}
+              maxLength={2}
+              onChange={(e) => setForm({ ...form, icon: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Preset Name *</label>
+            <input
+              className="input-field"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Adobe CC Activation"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Description</label>
+            <input
+              className="input-field"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Short description"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">
+              Placeholder Fields
+              <span className="field-hint"> (comma-separated, e.g. EMAIL, TEAM_NAME)</span>
+            </label>
+            <input
+              className="input-field"
+              value={rawFields}
+              onChange={(e) => setRawFields(e.target.value)}
+              placeholder="EMAIL, TEAM_NAME"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Template</label>
+            <textarea
+              className="input-field textarea-field"
+              rows={12}
+              value={form.template}
+              onChange={(e) => setForm({ ...form, template: e.target.value })}
+              placeholder="Use {{FIELD_NAME}} for placeholders"
+            />
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={!form.name.trim()}
+            >
+              Save Preset
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── ANALYTICS CARDS ──────────────────────────────────────────────────────────
+    function AnalyticsBar({ history, presets }) {
+      const total = history.length;
+      const today = history.filter((h) => {
+        const d = new Date(h.createdAt);
+        const now = new Date();
+        return (
+          d.getDate() === now.getDate() &&
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
+        );
+      }).length;
+      const totalPresets = presets.length;
+      const totalGenerated = presets.reduce((a, p) => a + (p.generatedCount || 0), 0);
+
+      const cards = [
+        { label: "Total Generated", value: total, emoji: "📤" },
+        { label: "Today", value: today, emoji: "📅" },
+        { label: "Presets", value: totalPresets, emoji: "🗂️" },
+        { label: "Activations", value: totalGenerated, emoji: "⚡" },
+      ];
+
+      return (
+        <div className="analytics-bar">
+          {cards.map((c) => (
+            <div className="stat-card" key={c.label}>
+              <div className="stat-emoji">{c.emoji}</div>
+              <div className="stat-value">{c.value}</div>
+              <div className="stat-label">{c.label}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ─── HISTORY PANEL ────────────────────────────────────────────────────────────
+    function HistoryPanel({ history, onDelete, onClear, onUse, onCheckStatus, toast }) {
+      const [search, setSearch] = useState("");
+      const filtered = history.filter(
+        (h) =>
+          h.email.toLowerCase().includes(search.toLowerCase()) ||
+          h.teamName.toLowerCase().includes(search.toLowerCase())
+      );
+
+      const copyMsg = (msg) => {
+        navigator.clipboard.writeText(msg).then(() => toast("Message copied!", "success"));
+      };
+
+      return (
+        <div className="history-panel">
+          <div className="history-header">
+            <h2 className="panel-title">
+              <Icon.History /> History
+            </h2>
+            {history.length > 0 && (
+              <button className="btn btn-ghost btn-sm danger" onClick={onClear}>
+                <Icon.Trash /> Clear All
+              </button>
+            )}
+          </div>
+
+          {history.length > 0 && (
+            <div className="search-wrap">
+              <Icon.Search />
+              <input
+                className="search-input"
+                placeholder="Search by email or team…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch("")}>×</button>
+              )}
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📭</div>
+              <p>{history.length === 0 ? "No messages generated yet." : "No results found."}</p>
+            </div>
+          ) : (
+            <div className="history-list">
+              {filtered.map((h) => (
+                <div className="history-card" key={h.id}>
+                  <div className="history-card-top">
+                    <div className="history-meta">
+                      <span className="history-preset-badge">{h.presetIcon} {h.presetName}</span>
+                      <span className="history-date">{formatDate(h.createdAt)}</span>
+                    </div>
+                    <div className="history-actions">
+                      <button
+                        className="icon-btn"
+                        title="Check subscription status"
+                        onClick={() => onCheckStatus(h.email)}
+                      >
+                        <Icon.Shield />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Copy message"
+                        onClick={() => copyMsg(h.message)}
+                      >
+                        <Icon.Copy />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Use these values"
+                        onClick={() => onUse(h)}
+                      >
+                        <Icon.Refresh />
+                      </button>
+                      <button
+                        className="icon-btn danger"
+                        title="Delete"
+                        onClick={() => onDelete(h.id)}
+                      >
+                        <Icon.Trash />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="history-fields">
+                    <span className="field-chip">✉️ {h.email}</span>
+                    <span className="field-chip">👥 {h.teamName}</span>
+                  </div>
+                  <pre className="history-preview">{h.message.slice(0, 180)}…</pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── PRESETS PAGE ─────────────────────────────────────────────────────────────
+    function PresetsPage({ presets, setPresets, toast }) {
+      const [editModal, setEditModal] = useState(null); // null | "new" | preset
+      const fileInputRef = useRef(null);
+
+      const handleSave = (form) => {
+        if (editModal === "new") {
+          const newPreset = {
+            ...form,
+            id: generateId(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            generatedCount: 0,
+          };
+          setPresets((prev) => [...prev, newPreset]);
+          toast("Preset created!", "success");
+        } else {
+          setPresets((prev) =>
+            prev.map((p) =>
+              p.id === editModal.id
+                ? { ...p, ...form, updatedAt: new Date().toISOString() }
+                : p
+            )
+          );
+          toast("Preset updated!", "success");
+        }
+        setEditModal(null);
+      };
+
+      const handleDuplicate = (preset) => {
+        const dup = {
+          ...preset,
+          id: generateId(),
+          name: preset.name + " (Copy)",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          generatedCount: 0,
+        };
+        setPresets((prev) => [...prev, dup]);
+        toast("Preset duplicated!", "success");
+      };
+
+      const handleDelete = (id) => {
+        if (presets.length <= 1) {
+          toast("At least one preset must remain.", "error");
+          return;
+        }
+        setPresets((prev) => prev.filter((p) => p.id !== id));
+        toast("Preset deleted.", "success");
+      };
+
+      const handleExport = () => {
+        const blob = new Blob([JSON.stringify(presets, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "fox_media_presets.json";
+        a.click();
+        toast("Presets exported!", "success");
+      };
+
+      const handleImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (!Array.isArray(imported)) throw new Error("Invalid format");
+            const merged = [
+              ...presets,
+              ...imported
+                .filter((p) => p.name && p.template)
+                .map((p) => ({
+                  ...p,
+                  id: generateId(),
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  generatedCount: 0,
+                })),
+            ];
+            setPresets(merged);
+            toast(`${imported.length} preset(s) imported!`, "success");
+          } catch {
+            toast("Invalid JSON file.", "error");
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      };
+
+      return (
+        <div className="page-content">
+          <div className="page-header">
+            <div>
+              <h2 className="page-title">Presets</h2>
+              <p className="page-subtitle">Manage your message templates</p>
+            </div>
+            <div className="page-header-actions">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleImport}
+              />
+              <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
+                <Icon.Import /> Import
+              </button>
+              <button className="btn btn-ghost" onClick={handleExport}>
+                <Icon.Export /> Export
+              </button>
+              <button className="btn btn-primary" onClick={() => setEditModal("new")}>
+                <Icon.Plus /> New Preset
+              </button>
+            </div>
+          </div>
+
+          <div className="presets-grid">
+            {presets.map((p) => (
+              <div className="preset-card" key={p.id}>
+                <div className="preset-card-top">
+                  <div className="preset-icon-wrap">{p.icon || "📋"}</div>
+                  <div className="preset-card-actions">
+                    <button className="icon-btn" title="Edit" onClick={() => setEditModal(p)}>
+                      <Icon.Edit />
+                    </button>
+                    <button className="icon-btn" title="Duplicate" onClick={() => handleDuplicate(p)}>
+                      <Icon.Duplicate />
+                    </button>
+                    <button className="icon-btn danger" title="Delete" onClick={() => handleDelete(p.id)}>
+                      <Icon.Trash />
+                    </button>
+                  </div>
+                </div>
+                <h3 className="preset-card-name">{p.name}</h3>
+                <p className="preset-card-desc">{p.description || "No description"}</p>
+                <div className="preset-card-fields">
+                  {(p.fields || []).map((f) => (
+                    <span key={f} className="field-chip">
+                      {`{{${f}}}`}
+                    </span>
+                  ))}
+                </div>
+                <div className="preset-card-footer">
+                  <span>Used {p.generatedCount || 0}×</span>
+                  <span>Updated {formatDate(p.updatedAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Modal
+            open={!!editModal}
+            onClose={() => setEditModal(null)}
+            title={editModal === "new" ? "New Preset" : "Edit Preset"}
+          >
+            <PresetEditor
+              preset={editModal === "new" ? null : editModal}
+              onSave={handleSave}
+              onClose={() => setEditModal(null)}
+            />
+          </Modal>
+        </div>
+      );
+    }
+
+    // ─── HELPER FOR CORS BYPASS API REQUESTS ──────────────────────────────────────
+    const makeRequest = async (url, method = 'GET', body = null) => {
+      // Direct local fallback: if hosted on HTTP, call the local server on 8080 first!
+      let primaryUrl = url;
+      if (url.startsWith('https://reseller.ado-besoft.com/')) {
+        if (window.location.host === 'localhost:8080') {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', '/');
+        } else {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', 'http://localhost:8080/');
+        }
+      }
+
+      try {
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(primaryUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("Primary fetch failed, trying CORS proxy fallback...", e);
+      }
+
+      // Public CORS proxy fallback
+      try {
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(proxyUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("corsproxy.io failed, trying allorigins...", e);
+      }
+
+      try {
+        if (method === 'GET') {
+          const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          const res = await fetch(allOriginsUrl);
+          if (res.ok) {
+            const wrapper = await res.json();
+            const data = JSON.parse(wrapper.contents);
+            if (data) {
+              return data;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("AllOrigins fetch failed:", e);
+      }
+
+      return null;
+    };
+
+    // ─── STATUS CHECK PAGE ────────────────────────────────────────────────────────
+    function StatusCheckPage({ toast, prefillEmail }) {
+      const [email, setEmail] = useState(prefillEmail || "");
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        if (prefillEmail) {
+          setEmail(prefillEmail);
+          handleCheck(prefillEmail);
+        }
+      }, [prefillEmail]);
+
+      const handleCheck = async (targetEmail) => {
+        const checkEmail = (targetEmail || email).trim();
+        if (!checkEmail) {
+          toast("Please enter an email address.", "error");
+          return;
+        }
+        if (!validateEmail(checkEmail)) {
+          toast("Enter a valid email address.", "error");
+          return;
+        }
+
+        setLoading(true);
+        setResult(null);
+        setError(null);
+
+        const data = await makeRequest('https://reseller.ado-besoft.com/api/user-status', 'POST', { email: checkEmail });
+        
+        setLoading(false);
+
+        if (data) {
+          if (data.found === false || data.error) {
+            setError(data.error || "No subscription found for this email");
+          } else {
+            setResult(data);
+            toast("Status check complete!", "success");
+          }
+        } else {
+          setError("Could not retrieve status details. Please check your internet connection.");
+          toast("Status check failed.", "error");
+        }
+      };
+
+      return (
+        <div className="page-content">
+          <div className="status-layout">
+            <div className="status-card card">
+              <div className="status-check-header">
+                <img src="logo.png" alt="Fox Media" className="page-logo" />
+                <h2 className="card-title" style={{ fontSize: '1.4rem' }}>Check Subscription Status</h2>
+                <p className="card-subtitle">Enter customer email ID to view real-time Adobe status</p>
+              </div>
+
+              <div className="field-row">
+                <label className="field-label">Customer Email ID <span className="required">*</span></label>
+                <input
+                  className="input-field"
+                  type="email"
+                  placeholder="customer@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCheck(); }}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="btn btn-primary btn-generate"
+                  onClick={() => handleCheck()}
+                  disabled={loading}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  {loading ? 'Checking Status...' : 'Check Live Status'}
+                </button>
+              </div>
+            </div>
+
+            {loading && (
+              <div className="status-loading card">
+                <div className="status-spinner"></div>
+                <p>Contacting licensing servers, please wait...</p>
+              </div>
+            )}
+
+            {!loading && result && (
+              <div className="status-result-card">
+                <div className="status-result-header">
+                  <span className="status-result-title">Subscription Result</span>
+                  <span className={`status-badge ${result.status === "active" || result.found ? "status-badge-active" : "status-badge-inactive"}`}>
+                    {result.status === "active" || result.found ? "● Active" : "○ Inactive"}
+                  </span>
+                </div>
+
+                <div className="status-details-grid">
+                  <div className="status-detail-item">
+                    <div className="status-detail-label">Organization</div>
+                    <div className="status-detail-val">{result.organization?.name || "N/A"}</div>
+                  </div>
+                  <div className="status-detail-item">
+                    <div className="status-detail-label">Team Status</div>
+                    <div className="status-detail-val">{result.organizationStatus?.label || "Normal"}</div>
+                  </div>
+                </div>
+
+                <div className="status-detail-item" style={{ width: "100%", marginBottom: result.daysRemaining !== null && result.daysRemaining !== undefined ? 16 : 0 }}>
+                  <div className="status-detail-label">Active Plan</div>
+                  <div className="status-detail-val" style={{ color: "var(--primary-light)" }}>
+                    {(result.products && result.products.join(", ")) || "Creative Cloud Pro Configuration"}
+                  </div>
+                </div>
+
+                {result.daysRemaining !== null && result.daysRemaining !== undefined && (
+                  <div className="status-detail-item" style={{ width: "100%", marginTop: 16 }}>
+                    <div className="status-detail-label">Days Remaining</div>
+                    <div className="status-detail-val" style={{ color: "var(--primary-light)" }}>
+                      {result.daysRemaining} days left
+                    </div>
+                  </div>
+                )}
+
+                {(result.status === "active" || result.found) && (
+                  <div className="status-alert">
+                    <div className="status-alert-title">🔹 Setup Instructions for Customer</div>
+                    <div className="status-alert-content">
+                      Please instruct the customer to follow these steps to access their new license:
+                      <ol>
+                        <li>Sign out from Adobe Creative Cloud App / website.</li>
+                        <li>Log back in using their registered email: <strong>{email}</strong>.</li>
+                        <li>Select <strong>{result.organization?.name || "the corporate organization"}</strong> when prompted for profile choice.</li>
+                        <li>(Optional) Go to <strong>account.adobe.com</strong> and select <em>"Sign out everywhere"</em> if activation does not update immediately.</li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
+
+                {!(result.status === "active" || result.found) && (
+                  <div className="status-inactive-cta">
+                    <div className="status-alert" style={{ background: "rgba(239, 68, 68, 0.05)", borderColor: "rgba(239, 68, 68, 0.15)" }}>
+                      <div className="status-alert-title" style={{ color: "#EF4444" }}>⚠️ Subscription Inactive</div>
+                      <div className="status-alert-content" style={{ color: "var(--text2)" }}>
+                        This subscription appears to be inactive. Please contact Fox Media support on WhatsApp to resolve this issue.
+                      </div>
+                    </div>
+                    <a
+                      href={`https://wa.me/919865488886?text=${encodeURIComponent(`Hello Fox Media, I need help with activation for email: ${email}. The subscription status shows inactive. Organization: ${result.organization?.name || "N/A"}. Please assist.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-whatsapp-status"
+                    >
+                      <Icon.WhatsApp /> Contact Fox Media on WhatsApp
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!loading && error && (
+              <div className="status-result-card status-error-card card">
+                <div className="status-error-icon">❌</div>
+                <h3 className="status-error-title">
+                  {error.includes("connection") || error.includes("retrieve") ? "Status Check Failed" : "No Subscription Found"}
+                </h3>
+                <p className="status-error-desc">
+                  {error.includes("connection") || error.includes("retrieve") 
+                    ? error 
+                    : <span>There is no active Adobe subscription registered for <strong>{email}</strong>.</span>
+                  }
+                </p>
+                <div className="status-alert" style={{ background: "rgba(239, 68, 68, 0.05)", borderColor: "rgba(239, 68, 68, 0.15)" }}>
+                  <div className="status-alert-title" style={{ color: "#EF4444" }}>What to do next?</div>
+                  <div className="status-alert-content" style={{ color: "var(--text2)" }}>
+                    Please verify that the email address is spelled correctly. If this is a new order, contact Fox Media support on WhatsApp to register the activation.
+                  </div>
+                </div>
+                <a
+                  href={`https://wa.me/919865488886?text=${encodeURIComponent(`Hello Fox Media, I need help with activation for email: ${email}. The subscription status shows inactive/not found. Please assist.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-whatsapp-status"
+                >
+                  <Icon.WhatsApp /> Contact Fox Media on WhatsApp
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── BULK SEARCH PAGE ─────────────────────────────────────────────────────────
+    function BulkSearchPage({ toast }) {
+      const [rawText, setRawText] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [results, setResults] = useState([]);
+      const [filter, setFilter] = useState("");
+
+      const handleBulkCheck = async () => {
+        const emails = rawText
+          .split(/[\n,;]+/)
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => validateEmail(e));
+
+        if (emails.length === 0) {
+          toast("Please enter one or more valid email addresses.", "error");
+          return;
+        }
+
+        setLoading(true);
+        setResults([]);
+
+        const data = await makeRequest('https://reseller.ado-besoft.com/api/bulk-user-status', "POST", { emails });
+
+        setLoading(false);
+
+        if (data && data.results) {
+          setResults(data.results);
+          toast(`Bulk status check complete for ${data.results.length} email(s)!`, "success");
+        } else {
+          toast("Failed to run bulk status check. Please verify your connection.", "error");
+        }
+      };
+
+      const copyActiveEmails = () => {
+        const active = results
+          .filter((r) => r.status === "active" || r.found)
+          .map((r) => r.email);
+
+        if (active.length === 0) {
+          toast("No active subscriptions found to copy.", "error");
+          return;
+        }
+
+        navigator.clipboard.writeText(active.join("\n")).then(() => {
+          toast(`Copied ${active.length} active email(s) to clipboard!`, "success");
+        });
+      };
+
+      const filteredResults = results.filter(
+          (r) =>
+            r.email.toLowerCase().includes(filter.toLowerCase()) ||
+            (r.organizationName || "").toLowerCase().includes(filter.toLowerCase())
+        );
+
+      const activeCount = results.filter((r) => r.status === "active" || r.found).length;
+      const inactiveCount = results.length - activeCount;
+
+      return (
+        <div className="page-content">
+          <div className="bulk-layout">
+            <div className="card">
+              <div className="card-header" style={{ textAlign: 'center' }}>
+                <img src="logo.png" alt="Fox Media" className="page-logo" />
+                <h2 className="card-title">Bulk Subscription Search</h2>
+                <p className="card-subtitle">Paste multiple email addresses (one per line or separated by commas) to query live status</p>
+              </div>
+
+              <div className="field-row">
+                <textarea
+                  className="bulk-textarea"
+                  placeholder="customer1@example.com&#10;customer2@example.com"
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="bulk-actions-row">
+                <span className="char-count" style={{ fontSize: "0.85rem" }}>
+                  Enter emails to query status
+                </span>
+                <button
+                  className="btn btn-primary btn-generate"
+                  onClick={handleBulkCheck}
+                  disabled={loading}
+                >
+                  {loading ? 'Checking Licenses...' : 'Run Bulk Check'}
+                </button>
+              </div>
+            </div>
+
+            {loading && (
+              <div className="status-loading card">
+                <div className="status-spinner"></div>
+                <p>Running bulk query on reseller servers, please wait...</p>
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <>
+                <div className="bulk-stats-grid">
+                  <div className="bulk-stat-card">
+                    <div className="bulk-stat-count count-total">{results.length}</div>
+                    <div className="bulk-stat-label">Total Checked</div>
+                  </div>
+                  <div className="bulk-stat-card">
+                    <div className="bulk-stat-count count-active">{activeCount}</div>
+                    <div className="bulk-stat-label">Active Subscriptions</div>
+                  </div>
+                  <div className="bulk-stat-card">
+                    <div className="bulk-stat-count count-inactive">{inactiveCount}</div>
+                    <div className="bulk-stat-label">Not Found / Inactive</div>
+                  </div>
+                </div>
+
+                <div className="bulk-results-card">
+                  <div className="bulk-actions-row" style={{ marginBottom: 12 }}>
+                    <div className="search-wrap bulk-search-box">
+                      <Icon.Search />
+                      <input
+                        className="search-input"
+                        placeholder="Search emails or orgs..."
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                      />
+                      {filter && (
+                        <button className="search-clear" onClick={() => setFilter("")}>×</button>
+                      )}
+                    </div>
+                    <div>
+                      <button className="btn btn-outline btn-sm" onClick={copyActiveEmails}>
+                        <Icon.Copy /> Copy Active
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bulk-table-container">
+                    <table className="bulk-table">
+                      <thead>
+                        <tr>
+                          <th className="bulk-th">EMAIL</th>
+                          <th className="bulk-th">STATUS</th>
+                          <th className="bulk-th">ORGANIZATION</th>
+                          <th className="bulk-th">DETAILS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredResults.map((r, idx) => {
+                          const isActive = r.status === "active" || r.found;
+                          const getDetailsText = () => {
+                            if (!isActive) return "days left -";
+                            if (r.daysRemaining !== null && r.daysRemaining !== undefined) {
+                              return `days left ${r.daysRemaining}`;
+                            }
+                            return "";
+                          };
+                          return (
+                            <tr className="bulk-tr" key={idx}>
+                              <td className="bulk-td bulk-email-text">{r.email}</td>
+                              <td className="bulk-td">
+                                <span className={`status-badge ${isActive ? "status-badge-active" : "status-badge-inactive"}`}>
+                                  {isActive ? "● Active" : "○ Not Found"}
+                                </span>
+                              </td>
+                              <td className="bulk-td bulk-org-text">
+                                {isActive ? (r.organizationName || "N/A") : "-"}
+                              </td>
+                              <td className="bulk-td bulk-product-text">
+                                {getDetailsText()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {filteredResults.length === 0 && (
+                          <tr>
+                            <td className="bulk-td" colSpan={4} style={{ textAlign: "center", color: "var(--text3)", padding: 32 }}>
+                              No matching results found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ─── GENERATOR PAGE ────────────────────────────────────────────────────────────
+    function GeneratorPage({ presets, setPresets, history, setHistory, toast, prefill }) {
+      const [selectedPresetId, setSelectedPresetId] = useState(presets[0]?.id || "");
+      const [fields, setFields] = useState({});
+      const [generated, setGenerated] = useState("");
+      const [errors, setErrors] = useState({});
+      const [copied, setCopied] = useState(false);
+
+      const preset = presets.find((p) => p.id === selectedPresetId) || presets[0];
+
+      // Prefill from history entry
+      useEffect(() => {
+        if (prefill) {
+          setSelectedPresetId(prefill.presetId || presets[0]?.id || "");
+          setFields({ EMAIL: prefill.email || "", TEAM_NAME: prefill.teamName || "" });
+          setGenerated(prefill.message || "");
+        }
+      }, [prefill]);
+
+      // When preset changes, reset field values
+      useEffect(() => {
+        if (!preset) return;
+        const newFields = {};
+        preset.fields.forEach((f) => {
+          newFields[f] = fields[f] || "";
+        });
+        setFields(newFields);
+        setErrors({});
+        setGenerated("");
+      }, [selectedPresetId]);
+
+      const validate = () => {
+        const errs = {};
+        preset.fields.forEach((f) => {
+          const val = (fields[f] || "").trim();
+          if (!val) {
+            errs[f] = `${f.replace(/_/g, " ")} is required`;
+          } else if (f === "EMAIL" && !validateEmail(val)) {
+            errs[f] = "Enter a valid email address";
+          } else if (val.length < 2) {
+            errs[f] = "Must be at least 2 characters";
+          }
+        });
+        return errs;
+      };
+
+      const handleGenerate = () => {
+        const errs = validate();
+        if (Object.keys(errs).length) {
+          setErrors(errs);
+          toast("Please fix the errors before generating.", "error");
+          return;
+        }
+        setErrors({});
+
+        let msg = preset.template;
+        preset.fields.forEach((f) => {
+          msg = msg.split(`{{${f}}}`).join((fields[f] || "").trim());
+        });
+        setGenerated(msg);
+
+        // Save to history
+        const entry = {
+          id: generateId(),
+          presetId: preset.id,
+          presetName: preset.name,
+          presetIcon: preset.icon || "📋",
+          email: fields.EMAIL || Object.values(fields)[0] || "",
+          teamName: fields.TEAM_NAME || Object.values(fields)[1] || "",
+          message: msg,
+          createdAt: new Date().toISOString(),
+        };
+        setHistory((prev) => [entry, ...prev].slice(0, 200));
+
+        // Update preset count
+        setPresets((prev) =>
+          prev.map((p) =>
+            p.id === preset.id
+              ? { ...p, generatedCount: (p.generatedCount || 0) + 1 }
+              : p
+          )
+        );
+
+        toast("Message generated successfully!", "success");
+      };
+
+      const handleCopy = () => {
+        if (!generated) return;
+        navigator.clipboard.writeText(generated).then(() => {
+          setCopied(true);
+          toast("Copied to clipboard!", "success");
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+
+      const handleDownload = () => {
+        if (!generated) return;
+        const blob = new Blob([generated], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `activation_${Date.now()}.txt`;
+        a.click();
+        toast("Downloaded!", "success");
+      };
+
+      const handleReset = () => {
+        const empty = {};
+        preset.fields.forEach((f) => { empty[f] = ""; });
+        setFields(empty);
+        setGenerated("");
+        setErrors({});
+        toast("Form cleared.", "success");
+      };
+
+      const fieldLabel = (f) => {
+        if (f === "EMAIL") return "Customer Email ID";
+        if (f === "TEAM_NAME") return "Team Name";
+        return f.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      };
+
+      const charCount = generated.length;
+
+      return (
+        <div className="page-content">
+          <div className="generator-layout">
+            {/* Left: Form */}
+            <div className="gen-form-col">
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Generate Message</h2>
+                  <p className="card-subtitle">Fill in the fields to generate your activation message</p>
+                </div>
+
+                {/* Preset Selector */}
+                <div className="field-row">
+                  <label className="field-label">Preset</label>
+                  <div className="select-wrap">
+                    <select
+                      className="select-field"
+                      value={selectedPresetId}
+                      onChange={(e) => setSelectedPresetId(e.target.value)}
+                    >
+                      {presets.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.icon} {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dynamic Fields */}
+                {preset &&
+                  preset.fields.map((f) => (
+                    <div className="field-row" key={f}>
+                      <label className="field-label">
+                        {fieldLabel(f)} <span className="required">*</span>
+                      </label>
+                      <input
+                        className={`input-field${errors[f] ? " input-error" : ""}`}
+                        type={f === "EMAIL" ? "email" : "text"}
+                        placeholder={
+                          f === "EMAIL"
+                            ? "customer@example.com"
+                            : f === "TEAM_NAME"
+                              ? "e.g. My Creative Team"
+                              : `Enter ${fieldLabel(f)}`
+                        }
+                        value={fields[f] || ""}
+                        onChange={(e) => {
+                          setFields({ ...fields, [f]: e.target.value });
+                          if (errors[f]) setErrors({ ...errors, [f]: "" });
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleGenerate(); }}
+                      />
+                      {errors[f] && <span className="error-msg">{errors[f]}</span>}
+                    </div>
+                  ))}
+
+                <div className="form-actions">
+                  <button className="btn btn-ghost" onClick={handleReset}>
+                    <Icon.Refresh /> Reset
+                  </button>
+                  <button className="btn btn-primary btn-generate" onClick={handleGenerate}>
+                    <Icon.Zap /> Generate
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Preview */}
+            <div className="gen-preview-col">
+              <div className="card preview-card">
+                <div className="card-header preview-header">
+                  <div>
+                    <h2 className="card-title">Message Preview</h2>
+                    {generated && (
+                      <span className="char-count">{charCount} characters</span>
+                    )}
+                  </div>
+                  {generated && (
+                    <div className="preview-actions">
+                      <button
+                        className={`btn ${copied ? "btn-success" : "btn-outline"} btn-sm`}
+                        onClick={handleCopy}
+                      >
+                        <Icon.Copy /> {copied ? "Copied!" : "Copy"}
+                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={handleDownload}>
+                        <Icon.Download /> TXT
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {generated ? (
+                  <pre className="message-preview">{generated}</pre>
+                ) : (
+                  <div className="preview-empty">
+                    <div className="preview-empty-icon">✉️</div>
+                    <p>Fill in the fields and click <strong>Generate</strong> to preview your message here.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Template Preview */}
+              {!generated && preset && (
+                <div className="card template-card">
+                  <div className="card-header">
+                    <h3 className="card-title" style={{ fontSize: "0.9rem" }}>Template Preview</h3>
+                  </div>
+                  <pre className="template-preview">{preset.template}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── ROOT APP ─────────────────────────────────────────────────────────────────
+    function App() {
+      const { toasts, add: addToast, remove: removeToast } = useToast();
+
+      const [theme, setTheme] = useState(() => loadFromStorage(STORAGE_KEYS.THEME, "dark"));
+      const [page, setPage] = useState("generator"); // "generator" | "presets" | "history" | "status" | "bulk"
+      const [presets, setPresets] = useState(() =>
+        loadFromStorage(STORAGE_KEYS.PRESETS, [DEFAULT_PRESET])
+      );
+      const [history, setHistory] = useState(() =>
+        loadFromStorage(STORAGE_KEYS.HISTORY, [])
+      );
+      const [prefill, setPrefill] = useState(null);
+      const [prefillEmail, setPrefillEmail] = useState("");
+      const [mobileNav, setMobileNav] = useState(false);
+
+      // Persist values to localStorage
+      useEffect(() => { saveToStorage(STORAGE_KEYS.PRESETS, presets); }, [presets]);
+      useEffect(() => { saveToStorage(STORAGE_KEYS.HISTORY, history); }, [history]);
+      useEffect(() => { saveToStorage(STORAGE_KEYS.THEME, theme); }, [theme]);
+
+      // Apply theme HTML attribute
+      useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+      }, [theme]);
+
+      const handleUseHistory = (entry) => {
+        setPrefill(entry);
+        setPage("generator");
+        setMobileNav(false);
+      };
+
+      const handleCheckHistoryStatus = (email) => {
+        setPrefillEmail(email);
+        setPage("status");
+        setMobileNav(false);
+      };
+
+      const handleDeleteHistory = (id) => {
+        setHistory((prev) => prev.filter((h) => h.id !== id));
+        addToast("Entry deleted.", "success");
+      };
+
+      const handleClearHistory = () => {
+        setHistory([]);
+        addToast("History cleared.", "success");
+      };
+
+      const navItems = [
+        { id: "generator", label: "Generator", icon: <Icon.Zap /> },
+        { id: "presets", label: "Presets", icon: <Icon.Layers /> },
+        { id: "status", label: "Status Check", icon: <Icon.Shield /> },
+        { id: "bulk", label: "Bulk Search", icon: <Icon.Search /> },
+        { id: "history", label: "History", icon: <Icon.History /> },
+      ];
+
+      return (
+        <div className="app-shell">
+          <ToastContainer toasts={toasts} remove={removeToast} />
+
+          {/* Sidebar */}
+          <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
+            <div className="sidebar-brand">
+              <img className="brand-logo-img" src="logo.png" alt="Fox Media Logo" />
+              <div className="brand-text">
+                <div className="brand-name">Fox Media</div>
+                <div className="brand-sub">Adobe Site</div>
+              </div>
+            </div>
+
+            <nav className="sidebar-nav">
+              {navItems.map((n) => (
+                <button
+                  key={n.id}
+                  className={`nav-item ${page === n.id ? "nav-item-active" : ""}`}
+                  onClick={() => { setPage(n.id); setMobileNav(false); prefill && setPrefill(null); prefillEmail && setPrefillEmail(""); }}
+                >
+                  <span className="nav-icon">{n.icon}</span>
+                  <span className="nav-label">{n.label}</span>
+                  {n.id === "history" && history.length > 0 && (
+                    <span className="nav-badge">{history.length > 99 ? "99+" : history.length}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+
+            {/* Glowing WhatsApp Contact Banner */}
+            <div className="sidebar-cta">
+              <div className="cta-title">New Activation?</div>
+              <div className="cta-desc">Need a new plan license or help with activation? Contact us now!</div>
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-whatsapp"
+              >
+                <Icon.WhatsApp /> Contact WhatsApp
+              </a>
+            </div>
+
+            <div className="sidebar-footer">
+              <AnalyticsBar history={history} presets={presets} />
+            </div>
+          </aside>
+
+          {/* Mobile navigation backdrop overlay */}
+          {mobileNav && (
+            <div className="mobile-overlay" onClick={() => setMobileNav(false)} />
+          )}
+
+          {/* Main Area */}
+          <main className="main-area">
+            <header className="topbar">
+              <button className="mobile-menu-btn" onClick={() => setMobileNav(!mobileNav)}>
+                ☰
+              </button>
+              <div className="topbar-title">
+                {navItems.find((n) => n.id === page)?.label}
+              </div>
+              <div className="topbar-actions">
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="topbar-whatsapp-btn"
+                  title="Contact WhatsApp for new activations"
+                >
+                  <Icon.WhatsApp />
+                  <span>New Activation</span>
+                </a>
+                <button
+                  className="theme-toggle"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+                </button>
+              </div>
+            </header>
+
+            <div className="main-content">
+              {page === "generator" && (
+                <GeneratorPage
+                  presets={presets}
+                  setPresets={setPresets}
+                  history={history}
+                  setHistory={setHistory}
+                  toast={addToast}
+                  prefill={prefill}
+                />
+              )}
+              {page === "presets" && (
+                <PresetsPage presets={presets} setPresets={setPresets} toast={addToast} />
+              )}
+              {page === "status" && (
+                <StatusCheckPage
+                  toast={addToast}
+                  prefillEmail={prefillEmail}
+                />
+              )}
+              {page === "bulk" && (
+                <BulkSearchPage
+                  toast={addToast}
+                />
+              )}
+              {page === "history" && (
+                <HistoryPanel
+                  history={history}
+                  onDelete={handleDeleteHistory}
+                  onClear={handleClearHistory}
+                  onUse={handleUseHistory}
+                  onCheckStatus={handleCheckHistoryStatus}
+                  toast={addToast}
+                />
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // Render the App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const codeElement = document.getElementById('react-app-code');
+        if (!codeElement) return;
+        const code = codeElement.textContent;
+        const compiled = Babel.transform(code, {
+          presets: [['react', { runtime: 'classic' }]]
+        }).code;
+        const script = document.createElement('script');
+        script.text = compiled;
+        document.body.appendChild(script);
+      } catch (e) {
+        console.error("Babel compilation error:", e);
+      }
+    });
+  </script>
+</body>
+
+</html>
