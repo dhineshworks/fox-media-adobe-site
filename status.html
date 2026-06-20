@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fox Media - Subscription Status Checker</title>
+  <meta name="description" content="View your Adobe subscription and organization assignment status in real-time.">
+
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <!-- Main React App Script (JSX compiled in-browser via Babel) -->
+  <script type="text/plain" id="react-app-code">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── CONSTANTS & CONFIGURATION ──────────────────────────────────────────────
+    const STORAGE_KEYS = {
+      THEME: "fma_status_theme",
+    };
+
+    const WHATSAPP_NUMBER = "9865488886";
+    const WHATSAPP_LINK = `https://wa.me/91${WHATSAPP_NUMBER}?text=Hello%20Fox%20Media,%20I%20need%20help%20with%20my%20subscription%20status.`;
+    const STATUS_LANGUAGES = {
+      en: "English",
+      ta: "தமிழ் (Tamil)",
+      ml: "മലയാളം (Malayalam)",
+      hi: "हिन्दी (Hindi)"
+    };
+
+    const STATUS_TRANSLATIONS = {
+      en: {
+        title: "Fox Media Check Status",
+        subtitle: "Enter your email to view your Adobe subscription status",
+        emailPlaceholder: "customer@example.com",
+        searchButton: "Check Status",
+        searching: "Searching...",
+        organization: "Organization",
+        plan: "Active Plan",
+        duration: "Duration",
+        months: "months",
+        daysRemaining: "Days Remaining",
+        days: "days",
+        status: "Status",
+        activated: "Activated",
+        expires: "Expires",
+        active: "Active",
+        expired: "Expired",
+        expiringSoon: "Expiring Soon",
+        notFound: "No subscription found for this email",
+        notFoundDesc: "Please check your email address or contact support.",
+        instructions: "Instructions",
+        instructionsText: "If you recently received access or your organization was updated, please sign out of all Adobe apps and sign back in with this email. Go to account.adobe.com and select 'Sign out everywhere' if needed.",
+        teamSwitch: "Need to switch teams?",
+        teamSwitchText: "If you see multiple team options, select the organization shown above to access your subscription.",
+        notice: "Important Notice",
+        subscriptionProgress: "Subscription Progress",
+        footer: "For support, contact Fox Media support or your reseller.",
+        language: "Language",
+        migrationInProgress: "Migration In Progress",
+        migrationSubtitle: "Your account is being upgraded to a new system",
+        queuePosition: "Queue Position",
+        estimatedTime: "Estimated Time",
+        minutes: "min",
+        usersProcessed: "Users Processed",
+        pleaseWait: "Please wait while we complete your migration. This process is automatic.",
+        migrationActive: "MIGRATING"
+      },
+      ta: {
+        title: "Fox Media நிலையைச் சரிபார்",
+        subtitle: "உங்கள் அடோப் சந்தா நிலையை அறிய மின்னஞ்சலை உள்ளிடவும்",
+        emailPlaceholder: "மின்னஞ்சல் முகவரி",
+        searchButton: "நிலையைச் சரிபார்",
+        searching: "தேடுகிறது...",
+        organization: "நிறுவனம்",
+        plan: "செயலில் உள்ள திட்டம்",
+        duration: "கால அளவு",
+        months: "மாதங்கள்",
+        daysRemaining: "மீதமுள்ள நாட்கள்",
+        days: "நாட்கள்",
+        status: "நிலை",
+        activated: "செயல்படுத்தப்பட்டது",
+        expires: "காலாவதி தேதி",
+        active: "செயலில் உள்ளது",
+        expired: "காலாவதியானது",
+        expiringSoon: "விரைவில் காலாவதியாகிறது",
+        notFound: "இந்த மின்னஞ்சலில் எந்த சந்தாவும் கண்டறியப்படவில்லை",
+        notFoundDesc: "மின்னஞ்சல் முகவரியைச் சரிபார்க்கவும் அல்லது ஆதரவைத் தொடர்பு கொள்ளவும்.",
+        instructions: "அறிவுறுத்தல்கள்",
+        instructionsText: "சமீபத்தில் உங்களுக்கு அனுமதி கிடைத்திருந்தால் அல்லது உங்கள் நிறுவனம் புதுப்பிக்கப்பட்டிருந்தால், தயவுசெய்து அனைத்து அடோப் ஆப்ஸிலிருந்தும் வெளியேறி, இந்த மின்னஞ்சல் மூலம் மீண்டும் உள்நுழையவும். தேவைப்பட்டால் account.adobe.com பக்கத்திற்குச் சென்று 'Sign out everywhere' என்பதைத் தேர்ந்தெடுக்கவும்.",
+        teamSwitch: "குழுக்களை மாற்ற வேண்டுமா?",
+        teamSwitchText: "ஒன்றிற்கு மேற்பட்ட குழு விருப்பங்களைக் கண்டால், உங்கள் சந்தாவை அணுக மேலே காட்டப்பட்டுள்ள நிறுவனத்தைத் தேர்ந்தெடுக்கவும்.",
+        notice: "முக்கிய அறிவிப்பு",
+        subscriptionProgress: "சந்தா முன்னேற்றம்",
+        footer: "ஆதரவுக்கு, Fox Media ஆதரவு அல்லது உங்கள் நிர்வாகியைத் தொடர்பு கொள்ளவும்.",
+        language: "மொழி",
+        migrationInProgress: "தரவு மாற்றம் நடைபெறுகிறது",
+        migrationSubtitle: "உங்கள் கணக்கு புதிய அமைப்பிற்கு மாற்றப்படுகிறது",
+        queuePosition: "வரிசை எண்",
+        estimatedTime: "மதிப்பிடப்பட்ட நேரம்",
+        minutes: "நிமிடம்",
+        usersProcessed: "மாற்றப்பட்ட பயனர்கள்",
+        pleaseWait: "உங்கள் கணக்கு மாற்றம் முடியும் வரை காத்திருக்கவும். இது தானியங்கி செயல்முறையாகும்.",
+        migrationActive: "மாற்றப்படுகிறது"
+      },
+      ml: {
+        title: "Fox Media നില പരിശോധിക്കുക",
+        subtitle: "നിങ്ങളുടെ അഡോബി വരിക്കാരുടെ നില കാണാൻ ഇമെയിൽ നൽകുക",
+        emailPlaceholder: "ഇമെയിൽ വിലാസം",
+        searchButton: "നില പരിശോധിക്കുക",
+        searching: "തിരയുന്നു...",
+        organization: "സംഘടന",
+        plan: "സജീവ പ്ലാൻ",
+        duration: "കാലാവധി",
+        months: "മാസങ്ങൾ",
+        daysRemaining: "ബാക്കിയുള്ള ദിവസങ്ങൾ",
+        days: "ദിവസങ്ങൾ",
+        status: "നില",
+        activated: "സജീവമാക്കി",
+        expires: "കാലഹരണപ്പെടുന്നു",
+        active: "സജീവം",
+        expired: "കാലഹരണപ്പെട്ടു",
+        expiringSoon: "ഉടൻ കാലഹരണപ്പെടും",
+        notFound: "ഈ ഇമെയിലിൽ വരിസംഖ്യയൊന്നും കണ്ടെത്തിയില്ല",
+        notFoundDesc: "ദയവായി ഇമെയിൽ പരിശോധിക്കുക അല്ലെങ്കിൽ പിന്തുണയുമായി ബന്ധപ്പെടുക.",
+        instructions: "നിർദ്ദേശങ്ങൾ",
+        instructionsText: "നിങ്ങൾക്ക് അടുത്തിടെ ആക്സസ് ലഭിക്കുകയോ ഓർഗനൈസേഷൻ അപ്ഡേറ്റ് ചെയ്യപ്പെടുകയോ ചെയ്തിട്ടുണ്ടെങ്കിൽ, എല്ലാ അഡോബി ആപ്പുകളിൽ നിന്നും സൈൻ ഔട്ട് ചെയ്ത് ഈ ഇമെയിൽ ഉപയോഗിച്ച് വീണ്ടും സൈൻ ഇൻ ചെയ്യുക. ആവശ്യമെങ്കിൽ account.adobe.com സന്ദർശിച്ച് 'Sign out everywhere' തിരഞ്ഞെടുക്കുക.",
+        teamSwitch: "ടീമുകൾ മാറേണ്ടതുണ്ടോ?",
+        teamSwitchText: "ഒന്നിലധികം ടീം ഓപ്ഷനുകൾ കാണുകയാണെങ്കിൽ, നിങ്ങളുടെ സബ്സ്ക്രിപ്ഷൻ ആക്സസ് ചെയ്യാൻ മുകളിൽ കാണിച്ചിരിക്കുന്ന ഓർഗനൈസേഷൻ തിരഞ്ഞെടുക്കുക.",
+        notice: "പ്രധാന അറിയിപ്പ്",
+        subscriptionProgress: "സബ്സ്ക്രിപ്ഷൻ പുരോഗതി",
+        footer: "പിന്തുണയ്ക്കായി, ഫോക്സ് മീഡിയ പിന്തുണയുമായോ അഡ്മിനിസ്ട്രേറ്ററുമായോ ബന്ധപ്പെടുക.",
+        language: "ഭാഷ",
+        migrationInProgress: "മൈഗ്രേഷൻ പുരോഗതിയിലാണ്",
+        migrationSubtitle: "നിങ്ങളുടെ അക്കൗണ്ട് ഒരു പുതിയ സിസ്റ്റത്തിലേക്ക് അപ്ഗ്രേഡ് ചെയ്യപ്പെടുന്നു",
+        queuePosition: "ക്യൂവിലെ സ്ഥാനം",
+        estimatedTime: "പ്രതീക്ഷിക്കുന്ന സമയം",
+        minutes: "മിനിറ്റ്",
+        usersProcessed: "പ്രോസസ്സ് ചെയ്ത ഉപയോക്താക്കൾ",
+        pleaseWait: "നിങ്ങളുടെ മൈഗ്രേഷൻ പൂർത്തിയാകുന്നതുവരെ ദയവായി കാത്തിരിക്കുക. ഈ പ്രക്രിയ ഓട്ടോമാറ്റിക് ആണ്.",
+        migrationActive: "മൈഗ്രേറ്റിംഗ്"
+      },
+      hi: {
+        title: "Fox Media स्थिति जांचें",
+        subtitle: "अपनी एडोब सब्सक्रिप्शन स्थिति देखने के लिए ईमेल दर्ज करें",
+        emailPlaceholder: "ईमेल पता दर्ज करें",
+        searchButton: "स्थिति जांचें",
+        searching: "खोज रहे हैं...",
+        organization: "संगठन",
+        plan: "सक्रिय प्लान",
+        duration: "अवधि",
+        months: "महीने",
+        daysRemaining: "शेष दिन",
+        days: "दिन",
+        status: "स्थिति",
+        activated: "सक्रिय किया गया",
+        expires: "समाप्ति तिथि",
+        active: "सक्रिय",
+        expired: "समाप्त",
+        expiringSoon: "जल्द समाप्त होने वाला है",
+        notFound: "इस ईमेल के लिए कोई सब्सक्रिप्शन नहीं मिला",
+        notFoundDesc: "कृपया अपना ईमेल पता जांचें या सहायता से संपर्क करें।",
+        instructions: "निर्देश",
+        instructionsText: "यदि आपको हाल ही में एक्सेस मिला है या आपका संगठन अपडेट किया गया है, तो कृपया सभी एडोब ऐप्स से साइन आउट करें और इस ईमेल के साथ फिर से साइन इन करें। यदि आवश्यक हो तो account.adobe.com पर जाएं और 'Sign out everywhere' चुनें।",
+        teamSwitch: "टीम बदलने की आवश्यकता है?",
+        teamSwitchText: "यदि आप कई टीम विकल्प देखते हैं, तो अपनी सदस्यता तक पहुँचने के लिए ऊपर दिखाए गए संगठन का चयन करें।",
+        notice: "महत्वपूर्ण सूचना",
+        subscriptionProgress: "सब्सक्रिप्शन प्रगति",
+        footer: "सहायता के लिए, फॉक्स मीडिया सहायता या अपने एडमिनिस्ट्रेटर से संपर्क करें।",
+        language: "भाषा",
+        migrationInProgress: "माइग्रेशन प्रगति पर है",
+        migrationSubtitle: "आपका खाता एक नए सिस्टम में अपग्रेड किया जा रहा है",
+        queuePosition: "कतार की स्थिति",
+        estimatedTime: "अनुमानित समय",
+        minutes: "मिनट",
+        usersProcessed: "संसाधित उपयोगकर्ता",
+        pleaseWait: "कृपया माइग्रेशन पूरा होने तक प्रतीक्षा करें। यह प्रक्रिया स्वचालित है।",
+        migrationActive: "माइग्रेट हो रहा है"
+      }
+    };
+
+    // ─── UTILITIES & LOADERS ──────────────────────────────────────────────────────
+    function loadFromStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveToStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch { }
+    }
+
+    const Icon = {
+      Sun: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ),
+      Moon: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+      Shield: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      ),
+      WhatsApp: () => (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.437.002 9.861-4.416 9.863-9.864.001-2.639-1.026-5.122-2.892-6.989-1.866-1.867-4.35-2.893-6.991-2.893-5.44 0-9.866 4.417-9.867 9.866-.001 1.928.498 3.81 1.448 5.416L1.871 20.2l4.776-1.046zm11.367-4.906c-.31-.156-1.834-.905-2.119-1.008-.285-.104-.493-.156-.701.156-.208.312-.807.104-.989.312-.182.208-.364.208-.674.052-.31-.156-1.312-.483-2.498-1.542-.924-.825-1.548-1.844-1.73-2.155-.182-.31-.02-.477.135-.632.14-.139.31-.362.466-.544.156-.182.208-.312.31-.52.104-.208.052-.39-.026-.546-.078-.156-.701-1.687-.961-2.311-.253-.607-.512-.525-.701-.535-.18-.01-.387-.011-.595-.011-.208 0-.547.078-.833.39-.286.312-1.092 1.066-1.092 2.6 0 1.534 1.118 3.016 1.273 3.224.156.208 2.198 3.358 5.326 4.704.744.32 1.325.512 1.777.656.748.238 1.43.204 1.969.124.6-.09 1.834-.751 2.094-1.441.26-.69.26-1.284.182-1.402-.078-.117-.286-.208-.596-.364z" />
+        </svg>
+      ),
+      Building: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+          <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+          <line x1="9" y1="22" x2="9" y2="16" />
+          <line x1="15" y1="22" x2="15" y2="16" />
+          <line x1="9" y1="16" x2="15" y2="16" />
+          <line x1="9" y1="6" x2="9.01" y2="6" />
+          <line x1="15" y1="6" x2="15.01" y2="6" />
+          <line x1="9" y1="10" x2="9.01" y2="10" />
+          <line x1="15" y1="10" x2="15.01" y2="10" />
+          <line x1="12" y1="6" x2="12.01" y2="6" />
+          <line x1="12" y1="10" x2="12.01" y2="10" />
+        </svg>
+      ),
+      Layers: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+      ),
+      CheckCircle: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      ),
+      AlertCircle: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      ),
+      Info: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      ),
+      Settings: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      ),
+      Repeat: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14M7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      )
+    };
+
+    // ─── HELPER FOR CORS BYPASS API REQUESTS ──────────────────────────────────────
+    const makeRequest = async (url, method = 'GET', body = null) => {
+      let primaryUrl = url;
+      if (url.startsWith('https://reseller.ado-besoft.com/')) {
+        if (window.location.host === 'localhost:8080') {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', '/');
+        } else {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', 'http://localhost:8080/');
+        }
+      }
+
+      try {
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(primaryUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("Primary fetch failed, trying CORS proxy fallback...", e);
+      }
+
+      try {
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(proxyUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("corsproxy.io failed, trying allorigins...", e);
+      }
+
+      try {
+        if (method === 'GET') {
+          const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          const res = await fetch(allOriginsUrl);
+          if (res.ok) {
+            const wrapper = await res.json();
+            const data = JSON.parse(wrapper.contents);
+            if (data) {
+              return data;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("AllOrigins fetch failed:", e);
+      }
+
+      return null;
+    };
+
+    // ─── STATUS CHECK COMPONENT ──────────────────────────────────────────────────
+    function StatusCheckPage({ prefill, onClearPrefill, toast }) {
+      const [email, setEmail] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+      const [lang, setLang] = useState("en");
+      const [switchOptions, setSwitchOptions] = useState(null);
+      const [switching, setSwitching] = useState(false);
+      const [switchStatus, setSwitchStatus] = useState(null);
+      const [switchMessage, setSwitchMessage] = useState(null);
+      const [shake, setShake] = useState(false);
+      const [refreshCount, setRefreshCount] = useState(0);
+
+      const t = STATUS_TRANSLATIONS[lang] || STATUS_TRANSLATIONS.en;
+      const isRtl = lang === "ar";
+
+      // Relative date utility
+      const getRelativeTime = (dateStr) => {
+        if (!dateStr) return "";
+        const timeMs = new Date(dateStr).getTime();
+        if (Number.isNaN(timeMs)) return "";
+        const deltaSeconds = Math.max(0, Math.floor((Date.now() - timeMs) / 1000));
+        if (deltaSeconds < 60) return `${deltaSeconds || 1} second${deltaSeconds === 1 ? "" : "s"} ago`;
+        const deltaMinutes = Math.floor(deltaSeconds / 60);
+        if (deltaMinutes < 60) return `${deltaMinutes} minute${deltaMinutes === 1 ? "" : "s"} ago`;
+        const deltaHours = Math.floor(deltaMinutes / 60);
+        if (deltaHours < 24) return `${deltaHours} hour${deltaHours === 1 ? "" : "s"} ago`;
+        const deltaDays = Math.floor(deltaHours / 24);
+        return `${deltaDays} day${deltaDays === 1 ? "" : "s"} ago`;
+      };
+
+      const handleCheckStatus = async (targetEmail) => {
+        const emailToSearch = (targetEmail || email).trim();
+        if (!emailToSearch) return;
+
+        setLoading(true);
+        setError(null);
+        setResult(null);
+        setSwitchOptions(null);
+        setSwitchMessage(null);
+        setSwitchStatus(null);
+        setSwitching(false);
+
+        try {
+          let res;
+          if (emailToSearch.toLowerCase() === 'mock@example.com') {
+            res = {
+              found: true,
+              email: "mock@example.com",
+              status: "active",
+              showExpirationInfo: true,
+              daysRemaining: 120,
+              duration: 12,
+              durationLabel: "12 months",
+              activatedAt: "2026-01-01",
+              expiresAt: "2027-01-01",
+              progressPercent: 45,
+              organization: { name: "Fox Media Mock Org" },
+              products: ["Photoshop CC", "Illustrator CC", "Premiere Pro CC"]
+            };
+          } else {
+            res = await makeRequest("https://reseller.ado-besoft.com/api/user-status", "POST", { email: emailToSearch });
+          }
+
+          if (res && res.found) {
+            setResult(res);
+            if (emailToSearch.toLowerCase() !== 'mock@example.com') {
+              fetchSwitchOptions(res.email || emailToSearch);
+            } else {
+              setSwitchOptions({ available: true, targetOrgName: "Fox Media Active Partner Org" });
+            }
+          } else {
+            setError(res && res.error ? res.error : t.notFound);
+          }
+        } catch (e) {
+          setError("Network error. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchSwitchOptions = async (emailToSearch) => {
+        try {
+          const res = await makeRequest("https://reseller.ado-besoft.com/api/credits-pool/public/org-switch/options", "POST", { email: emailToSearch });
+          if (res && res.available) {
+            setSwitchOptions(res);
+          }
+        } catch (e) {
+          console.warn("Failed to fetch switch options:", e);
+        }
+      };
+
+      const triggerSwitchOrg = async (retryCount = 0) => {
+        if (!result || !result.email) return;
+        const retryDelays = [2000, 3000, 5000, 8000, 12000, 20000];
+        setSwitchStatus("inviting");
+
+        try {
+          const res = await makeRequest("https://reseller.ado-besoft.com/api/credits-pool/public/org-switch", "POST", { email: result.email.trim() });
+          if (res && res.success) {
+            setSwitchMessage(res.message || "You have been moved to the new organization.");
+            setSwitchOptions(null);
+            setSwitching(false);
+            setSwitchStatus(null);
+            // Refresh status
+            handleCheckStatus(result.email);
+            return;
+          }
+          throw Object.assign(new Error(res && res.error ? res.error : "switch_failed"));
+        } catch (e) {
+          if (retryCount < retryDelays.length) {
+            setSwitchStatus("retry-failed");
+            setShake(true);
+            setTimeout(() => setShake(false), 500);
+            setTimeout(() => setSwitchStatus("inviting"), 1200);
+            const delay = e.status === 429 ? 3 * retryDelays[retryCount] : retryDelays[retryCount];
+            const jitterDelay = Math.round(delay * (0.85 + 0.3 * Math.random()));
+            setTimeout(() => triggerSwitchOrg(retryCount + 1), jitterDelay);
+          } else {
+            setSwitching(false);
+            setSwitchStatus(null);
+            setSwitchOptions(null);
+            setError("Switch failed: " + (e.message || "Max retries exceeded"));
+          }
+        }
+      };
+
+      const handleSwitch = () => {
+        if (result && result.email && !switching) {
+          setSwitching(true);
+          setSwitchMessage(null);
+          triggerSwitchOrg(0);
+        }
+      };
+
+      // Initial check from prefill email or URL parameter
+      useEffect(() => {
+        if (prefill && prefill.trim()) {
+          setEmail(prefill.trim());
+          handleCheckStatus(prefill.trim());
+          onClearPrefill();
+        } else {
+          const params = new URLSearchParams(window.location.search);
+          const emailParam = params.get('email');
+          if (emailParam && emailParam.trim().includes('@')) {
+            setEmail(emailParam.trim());
+            handleCheckStatus(emailParam.trim());
+          }
+        }
+      }, [prefill]);
+
+      // Auto-refresh in the background every 20 seconds if result is present and we're not actively switching
+      useEffect(() => {
+        if (!result || !result.email || switchMessage || switching) return;
+        const interval = setInterval(() => {
+          handleCheckStatus(result.email);
+          setRefreshCount(prev => prev + 1);
+        }, 20000);
+        return () => clearInterval(interval);
+      }, [result, switchMessage, switching]);
+
+      const getStatusColor = (status) => {
+        switch (status) {
+          case 'active': return '#10B981';
+          case 'expiring-soon': return '#F59E0B';
+          case 'expired': return '#EF4444';
+          case 'migrating': return '#6366F1';
+          default: return '#6B7280';
+        }
+      };
+
+      const getBadgeClass = (status) => {
+        switch (status) {
+          case 'active': return 'status-checker-badge-active';
+          case 'expired': return 'status-checker-badge-expired';
+          case 'expiring-soon': return 'status-checker-badge-soon';
+          case 'migrating': return 'status-checker-badge-migrating';
+          default: return '';
+        }
+      };
+
+      const formatStatusText = (status) => {
+        switch (status) {
+          case 'active': return t.active;
+          case 'expiring-soon': return t.expiringSoon;
+          case 'expired': return t.expired;
+          case 'migrating': return 'Migrating';
+          default: return status;
+        }
+      };
+
+      const showValid = !!email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      const showInvalid = !!email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      return (
+        <div style={{ width: '100%', direction: isRtl ? 'rtl' : 'ltr' }}>
+          <div className="status-checker-container" style={{ padding: 0 }}>
+            {/* Language Selection */}
+            <div className="status-checker-lang-wrap">
+              <select className="status-checker-lang-select" value={lang} onChange={(e) => setLang(e.target.value)}>
+                {Object.entries(STATUS_LANGUAGES).map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Header */}
+            <header className="status-checker-header">
+              <img className="status-checker-logo" src="logo 2.png" alt="Fox Media Logo" />
+              <h1 className="status-checker-title">{t.title}</h1>
+              <p className="status-checker-subtitle">{t.subtitle}</p>
+            </header>
+
+            {/* Main status checker card */}
+            <div className="card">
+              <form onSubmit={(e) => { e.preventDefault(); handleCheckStatus(); }}>
+                <div className="field-row">
+                  <label className="field-label">Customer Email ID</label>
+                  <div className="status-checker-input-wrap">
+                    <svg className={`input-icon ${showValid ? 'input-field-valid-icon' : ''} ${showInvalid ? 'input-field-invalid-icon' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    <input
+                      className={`input-field ${showValid ? 'input-field-valid' : ''} ${showInvalid ? 'input-field-invalid' : ''}`}
+                      type="email"
+                      placeholder={t.emailPlaceholder}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                    {showValid && (
+                      <div className="status-checker-validation-indicator input-field-valid-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </div>
+                    )}
+                    {showInvalid && (
+                      <div className="status-checker-validation-indicator input-field-invalid-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="form-actions" style={{ marginTop: '16px' }}>
+                  <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }} disabled={loading || !email.trim() || showInvalid}>
+                    {loading ? (
+                      <React.Fragment>
+                        <span className="status-checker-spinner-small" style={{ borderTopColor: '#fff' }}></span>
+                        <span style={{ marginLeft: '8px' }}>{t.searching}</span>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" style={{ marginRight: '8px' }}>
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <span>{t.searchButton}</span>
+                      </React.Fragment>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Error container */}
+              {error && (
+                <div className="status-error" style={{ marginTop: '24px', padding: '16px 20px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', borderLeft: '4px solid #EF4444', borderRadius: 'var(--radius-sm)', color: '#FCA5A5', fontSize: '0.9rem', lineHeight: '1.5', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ color: '#EF4444', flexShrink: 0, marginTop: '2px' }}><Icon.AlertCircle /></div>
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '4px' }}>{error}</strong>
+                    <p style={{ fontSize: '0.82rem', opacity: 0.9 }}>{t.notFoundDesc}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Loader */}
+              {loading && !result && (
+                <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                  <div className="status-checker-spinner-loader"></div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text3)' }}>Querying server...</p>
+                </div>
+              )}
+
+              {/* Results Render */}
+              {result && !loading && (
+                <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Status Badge */}
+                  <div className="status-checker-badge-row">
+                    <span className={`status-checker-badge ${getBadgeClass(result.status)}`}>
+                      {formatStatusText(result.status)}
+                    </span>
+                  </div>
+
+                  {/* Switch Org Successful Alert */}
+                  {switchMessage && (
+                    <div className="status-checker-switch-success" style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div className="status-checker-switch-success-title" style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#10B981' }}>
+                        <Icon.CheckCircle />
+                        <span>Organization Switched Successfully</span>
+                      </div>
+                      <p className="status-checker-switch-success-body">{switchMessage}</p>
+                    </div>
+                  )}
+
+                  {/* Migration Queue Layout if migration exists */}
+                  {result.migration && (
+                    <div className="status-checker-migration-card">
+                      <div className="status-checker-migration-badge-wrap">
+                        <span className="status-checker-migration-badge">
+                          <span className="status-checker-migration-blink-dot"></span>
+                          {t.migrationActive || "MIGRATING"}
+                        </span>
+                      </div>
+                      <h3 className="status-checker-migration-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <Icon.Repeat />
+                        {t.migrationInProgress || "Migration In Progress"}
+                      </h3>
+                      <p className="status-checker-migration-subtitle">
+                        {t.migrationSubtitle || "Your account is being upgraded to a new system"}
+                      </p>
+                      
+                      <div className="status-checker-migration-grid">
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.queuePosition || "Queue Position"}</div>
+                          <div className="status-checker-migration-metric-val">#{result.migration.queuePosition}</div>
+                        </div>
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.estimatedTime || "Estimated Time"}</div>
+                          <div className="status-checker-migration-metric-val">~{result.migration.estimatedMinutesLeft} {t.minutes || "min"}</div>
+                        </div>
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.usersProcessed || "Users Processed"}</div>
+                          <div className="status-checker-migration-metric-val" style={{ fontSize: '1.1rem', paddingTop: '4px' }}>
+                            {result.migration.migratedCount}
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>/{result.migration.totalUsers}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="status-checker-migration-progress-wrap">
+                        <div className="status-checker-migration-progress-track">
+                          <div
+                            className="status-checker-migration-progress-bar"
+                            style={{ width: `${Math.round((result.migration.migratedCount / result.migration.totalUsers) * 100) || 0}%` }}
+                          ></div>
+                        </div>
+                        <div className="status-checker-migration-progress-label">
+                          {Math.round((result.migration.migratedCount / result.migration.totalUsers) * 100) || 0}% complete
+                        </div>
+                      </div>
+
+                      <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', textAlign: 'center', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <Icon.Info />
+                        <span>{t.pleaseWait || "Please wait while we complete your migration. This process is automatic."}</span>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Details box */}
+                  <div className="status-checker-details-box">
+                    <div className="status-checker-detail-item">
+                      <div className="status-checker-detail-icon"><Icon.Building /></div>
+                      <div className="status-checker-detail-content">
+                        <div className="status-checker-detail-label">{t.organization}</div>
+                        <div className="status-checker-detail-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>{result.organization?.name || "None"}</span>
+                          {result.organizationStatus?.status === 'inactive' && !switchMessage && (
+                            <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#EF4444', color: 'white', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>Inactive</span>
+                          )}
+                        </div>
+                        {result.teamChange?.changedAt && (
+                          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: 'var(--text3)', lineHeight: '1.4' }}>
+                            <strong>Team changed {getRelativeTime(result.teamChange.changedAt)}</strong>
+                            {result.teamChange.previousName && result.teamChange.currentName && (
+                              <span> from {result.teamChange.previousName} to {result.teamChange.currentName}</span>
+                            )}
+                          </div>
+                        )}
+                        {result.lastTransfer && (
+                          <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--bg3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              {result.lastTransfer.oldOrganizationName === result.lastTransfer.newOrganizationName ? (
+                                <React.Fragment>
+                                  <span style={{ color: '#EF4444', fontWeight: '500' }}>del -</span>
+                                  <span style={{ textDecoration: 'line-through', color: 'var(--text3)' }}>{result.lastTransfer.oldOrganizationName}</span>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text3)', fontStyle: 'italic' }}>(old)</span>
+                                  <span style={{ color: 'var(--text3)' }}>➔</span>
+                                  <span style={{ fontWeight: '600' }}>{result.lastTransfer.newOrganizationName}</span>
+                                  <span style={{ fontSize: '0.65rem', color: '#10B981', fontStyle: 'italic' }}>(new)</span>
+                                </React.Fragment>
+                              ) : (
+                                <React.Fragment>
+                                  <span style={{ textDecoration: 'line-through', color: 'var(--text3)' }}>{result.lastTransfer.oldOrganizationName}</span>
+                                  <span style={{ color: 'var(--text3)' }}>➔</span>
+                                  <span style={{ fontWeight: '600' }}>{result.lastTransfer.newOrganizationName}</span>
+                                </React.Fragment>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>
+                              Changed: {new Date(result.lastTransfer.date).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="status-checker-detail-item">
+                      <div className="status-checker-detail-icon"><Icon.Layers /></div>
+                      <div className="status-checker-detail-content">
+                        <div className="status-checker-detail-label">{t.plan}</div>
+                        <div className="status-checker-product-list">
+                          {(result.products || []).map((prod, idx) => (
+                            <span key={idx} className="status-checker-product-pill">{prod}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duration info */}
+                  {result.showExpirationInfo && result.daysRemaining !== undefined && (
+                    <div className="status-checker-metrics-grid">
+                      <div className="status-checker-metric-card">
+                        <div className="status-checker-detail-label">{t.duration}</div>
+                        <div className="status-checker-metric-val">{result.durationLabel || `${result.duration} ${t.months}`}</div>
+                      </div>
+                      <div className="status-checker-metric-card" style={{ borderLeft: `4px solid ${getStatusColor(result.status)}` }}>
+                        <div className="status-checker-detail-label">{t.daysRemaining}</div>
+                        <div className="status-checker-metric-val" style={{ color: getStatusColor(result.status) }}>{result.daysRemaining > 0 ? result.daysRemaining : 0}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subscription progress bar */}
+                  {result.showExpirationInfo && result.activatedAt && result.expiresAt && (
+                    <div className="status-checker-progress-bar-wrap">
+                      <div className="status-checker-progress-meta">
+                        <span>{t.subscriptionProgress} ({result.progressPercent || 0}%)</span>
+                      </div>
+                      <div className="status-checker-progress-track">
+                        <div className="status-checker-progress-bar" style={{ width: `${result.progressPercent || 0}%`, background: `linear-gradient(90deg, var(--primary) 0%, ${getStatusColor(result.status)} 100%)` }}></div>
+                      </div>
+                      <div className="status-checker-progress-meta" style={{ marginTop: '2px' }}>
+                        <span>{t.activated}: {new Date(result.activatedAt).toLocaleDateString()}</span>
+                        <span>{t.expires}: {new Date(result.expiresAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Organization switch option (Org Swap Button UI) */}
+                  {switchOptions && switchOptions.available && (
+                    <div className="status-checker-switch-cta-box">
+                      <div className="status-checker-switch-highlight-box">
+                        <div style={{ color: 'var(--primary-light)', display: 'flex', alignItems: 'center' }}><Icon.Repeat /></div>
+                        <div style={{ flex: 1 }}>
+                          <div className="status-checker-switch-highlight-label">Available Active Organization:</div>
+                          <div className="status-checker-switch-highlight-value">{switchOptions.targetOrgName}</div>
+                        </div>
+                      </div>
+
+                      {switching ? (
+                        <div className={`status-checker-switch-progress-text ${shake ? 'status-checker-shake' : ''}`}>
+                          <span className="status-checker-spinner-small"></span>
+                          <span style={{ fontSize: '0.85rem' }}>
+                            {switchStatus === "retry-failed" ? "Connection failed, retrying..." : `Switching to ${switchOptions.targetOrgName || "active profile"}...`}
+                          </span>
+                        </div>
+                      ) : (
+                        <button className="status-checker-btn-switch-org" onClick={handleSwitch} disabled={switchOptions.cooldownActive}>
+                          {switchOptions.cooldownActive ? "Cooldown Active — please wait" : "Transfer to active organization"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* If the reseller has orgStatus message */}
+                  {result.organizationStatus?.message && result.organizationStatus?.status !== 'inactive' && (
+                    <div className="status-checker-instructions-card" style={{ borderLeftColor: getStatusColor(result.organizationStatus.status) }}>
+                      <div className="status-checker-instructions-title" style={{ color: getStatusColor(result.organizationStatus.status), display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Icon.Settings />
+                        <span>Team Status: {result.organizationStatus.label || result.organizationStatus.status}</span>
+                      </div>
+                      <p className="status-checker-instructions-desc" style={{ margin: 0 }}>{result.organizationStatus.message}</p>
+                      {result.organizationStatus.lastCheckedAt && (
+                        <div style={{ color: 'var(--text3)', fontSize: '0.68rem', marginTop: '6px' }}>
+                          Checked {getRelativeTime(result.organizationStatus.lastCheckedAt)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Activation instructions */}
+                  <div className="status-checker-instructions-card">
+                    <div className="status-checker-instructions-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Icon.Info />
+                      <span>Adobe Activation Instructions</span>
+                    </div>
+                    <div className="status-checker-instructions-desc">
+                      <ol>
+                        <li>Open <strong>adobe.com</strong> in your browser.</li>
+                        <li>Sign out from any account currently logged in.</li>
+                        <li>Log back in using the registered email address shown above: <strong>{result.email || email}</strong>.</li>
+                        <li>If prompted to select a profile, select the organization: <strong>{result.organization?.name || "SOFT SUAVE TECHNOLOGIES PVT LTD"}</strong>.</li>
+                        <li>If activation fails or the profile is not shown, click the "Transfer to active organization" button above.</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <footer style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.8rem', color: 'var(--text3)' }}>
+              <p>{t.footer}</p>
+            </footer>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── MAIN APP WRAPPER FOR STANDALONE PAGE ─────────────────────────────────────
+    function App() {
+      const [theme, setTheme] = useState(() => loadFromStorage(STORAGE_KEYS.THEME, "dark"));
+
+      useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+      }, [theme]);
+
+      const toggleTheme = () => {
+        const nextTheme = theme === "dark" ? "light" : "dark";
+        setTheme(nextTheme);
+        saveToStorage(STORAGE_KEYS.THEME, nextTheme);
+      };
+
+      return (
+        <div className="status-standalone-layout">
+          <div className="status-standalone-topbar">
+            {/* Branded Text */}
+            <span style={{ color: 'var(--text)', fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.01em' }}>Fox Media</span>
+
+            {/* Quick Actions */}
+            <div className="status-standalone-actions">
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="topbar-whatsapp-btn"
+                style={{ padding: '8px 14px', borderRadius: '20px', fontSize: '0.82rem', height: '36px' }}
+              >
+                <Icon.WhatsApp />
+                <span>Support</span>
+              </a>
+              <button
+                className="theme-toggle"
+                onClick={toggleTheme}
+                style={{ width: '36px', height: '36px', borderRadius: '50%' }}
+                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+              </button>
+            </div>
+          </div>
+
+          <StatusCheckPage toast={(msg) => console.log(msg)} />
+        </div>
+      );
+    }
+
+    // Render the App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const codeElement = document.getElementById('react-app-code');
+        if (!codeElement) return;
+        const code = codeElement.textContent;
+        const compiled = Babel.transform(code, {
+          presets: [['react', { runtime: 'classic' }]]
+        }).code;
+        const script = document.createElement('script');
+        script.text = compiled;
+        document.body.appendChild(script);
+      } catch (e) {
+        console.error("Babel compilation error:", e);
+      }
+    });
+  </script>
+</body>
+
+</html>
