@@ -1144,7 +1144,7 @@ function StatusCheckPage({ prefill, onClearPrefill, toast }) {
 
             {/* Header */}
             <header className="status-checker-header">
-              <img className="status-checker-logo" src="logo 2.png" alt="Fox Media Logo" />
+              <img className="status-checker-logo" src="assets/images/logo2.png" alt="Fox Media Logo" />
               <h1 className="status-checker-title">{t.title}</h1>
               <p className="status-checker-subtitle">{t.subtitle}</p>
             </header>
@@ -1434,13 +1434,195 @@ function StatusCheckPage({ prefill, onClearPrefill, toast }) {
 
     // ─── BULK SEARCH PAGE ─────────────────────────────────────────────────────────
     function BulkSearchPage({ toast }) {
+      const [emailsText, setEmailsText] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [results, setResults] = useState(null);
+      const [error, setError] = useState(null);
+      const [filterText, setFilterText] = useState("");
+
+      const handleBulkCheck = async (e) => {
+        e.preventDefault();
+        if (!emailsText.trim()) return;
+
+        const parsedEmails = emailsText
+          .split(/[,\n ]+/)
+          .map((email) => email.trim())
+          .filter((email) => email.length > 0 && email.includes("@"));
+
+        if (parsedEmails.length === 0) {
+          setError("Please enter at least one valid email address.");
+          return;
+        }
+
+        if (parsedEmails.length > 100) {
+          setError("Maximum 100 emails allowed per request.");
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setResults(null);
+
+        try {
+          const data = await makeRequest("https://reseller.ado-besoft.com/api/bulk-user-status", "POST", { emails: parsedEmails });
+          if (data && data.results) {
+            setResults(data.results);
+            toast(`Successfully retrieved ${data.results.length} results`, "success");
+          } else {
+            setError(data?.error || "Failed to fetch bulk status information.");
+          }
+        } catch (err) {
+          console.error(err);
+          setError("Connection error checking bulk status. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const getStatusBadge = (status) => {
+        let bg = "#6b7280";
+        let label = "Not Found";
+
+        if (status === "active") {
+          bg = "#10b981";
+          label = "Active";
+        } else if (status === "expiring-soon") {
+          bg = "#f59e0b";
+          label = "Expiring Soon";
+        } else if (status === "expired") {
+          bg = "#ef4444";
+          label = "Expired";
+        } else if (status === "migrating") {
+          bg = "#6366f1";
+          label = "Migrating";
+        }
+
+        return (
+          <span style={{ padding: "4px 10px", borderRadius: "50px", background: bg, color: "white", fontWeight: "600", fontSize: "11px", textTransform: "uppercase", display: "inline-block" }}>
+            {label}
+          </span>
+        );
+      };
+
+      const total = results ? results.length : 0;
+      const activeCount = results ? results.filter((r) => r.status === "active").length : 0;
+      const inactiveCount = results ? results.filter((r) => r.status !== "active").length : 0;
+
+      const filteredResults = results
+        ? results.filter((r) =>
+            r.email.toLowerCase().includes(filterText.toLowerCase()) ||
+            (r.organizationName || "").toLowerCase().includes(filterText.toLowerCase()) ||
+            r.status.toLowerCase().includes(filterText.toLowerCase())
+          )
+        : [];
+
       return (
-        <div className="page-content" style={{ height: 'calc(100vh - 80px)', padding: 0 }}>
-          <iframe 
-            src="https://reseller.ado-besoft.com/bulk-status"
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="Bulk Subscription Search"
-          />
+        <div className="bulk-layout">
+          <div className="card">
+            <div className="status-check-header">
+              <img src="assets/images/logo2.png" alt="Fox Media Logo" className="page-logo" />
+              <h2 className="card-title" style={{ fontSize: "1.5rem", textAlign: "center", marginBottom: "8px" }}>Bulk Subscription Checker</h2>
+              <p className="card-subtitle" style={{ textAlign: "center", marginBottom: "20px" }}>Paste up to 100 email IDs (comma, space, or newline-separated)</p>
+            </div>
+
+            <form onSubmit={handleBulkCheck}>
+              <textarea
+                className="bulk-textarea"
+                placeholder="customer1@example.com\ncustomer2@example.com, customer3@example.com"
+                value={emailsText}
+                onChange={(e) => setEmailsText(e.target.value)}
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: "100%", marginTop: "16px" }}
+                disabled={loading || !emailsText.trim()}
+              >
+                {loading ? "Checking Statuses..." : "Check Statuses"}
+              </button>
+            </form>
+
+            {error && (
+              <div style={{ marginTop: "16px", padding: "12px", background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px", color: "#fca5a5" }}>
+                ❌ {error}
+              </div>
+            )}
+          </div>
+
+          {loading && (
+            <div className="status-loading">
+              <div className="status-spinner"></div>
+              <p>Querying batch licensing data from Adobe...</p>
+            </div>
+          )}
+
+          {results && (
+            <>
+              <div className="bulk-stats-grid">
+                <div className="bulk-stat-card">
+                  <div className="bulk-stat-count count-total">{total}</div>
+                  <div className="bulk-stat-label">Total Checked</div>
+                </div>
+                <div className="bulk-stat-card">
+                  <div className="bulk-stat-count count-active">{activeCount}</div>
+                  <div className="bulk-stat-label">Active</div>
+                </div>
+                <div className="bulk-stat-card">
+                  <div className="bulk-stat-count count-inactive">{inactiveCount}</div>
+                  <div className="bulk-stat-label">Inactive/Expired</div>
+                </div>
+              </div>
+
+              <div className="card bulk-results-card">
+                <div className="bulk-actions-row">
+                  <h3 style={{ margin: 0 }}>Query Results ({filteredResults.length})</h3>
+                  <input
+                    type="text"
+                    className="input-field bulk-search-box"
+                    placeholder="Search by email/org/status..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                  />
+                </div>
+
+                <div className="bulk-table-container">
+                  <table className="bulk-table">
+                    <thead>
+                      <tr>
+                        <th className="bulk-th">Email Address</th>
+                        <th className="bulk-th">Subscription Status</th>
+                        <th className="bulk-th">Adobe Organization</th>
+                        <th className="bulk-th">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredResults.map((r, i) => (
+                        <tr key={i} className="bulk-tr">
+                          <td className="bulk-td bulk-email-text">{r.email}</td>
+                          <td className="bulk-td">{getStatusBadge(r.status)}</td>
+                          <td className="bulk-td bulk-org-text">{r.organizationName || "-"}</td>
+                          <td className="bulk-td bulk-product-text">
+                            {r.status === "migrating" && <span>Queue: #{r.migrationQueuePosition}</span>}
+                            {r.daysRemaining !== null && r.daysRemaining !== undefined && <span>{r.daysRemaining} days left</span>}
+                            {r.status === "not_found" && <span>-</span>}
+                            {r.status !== "migrating" && r.daysRemaining === null && <span>-</span>}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredResults.length === 0 && (
+                        <tr className="bulk-tr">
+                          <td colSpan="4" className="bulk-td" style={{ textAlign: "center", color: "var(--text3)" }}>
+                            No matching user status records found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       );
     }
@@ -1743,7 +1925,7 @@ function StatusCheckPage({ prefill, onClearPrefill, toast }) {
           {/* Sidebar */}
           <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
             <div className="sidebar-brand">
-              <img className="brand-logo-img" src="logo.png" alt="Fox Media Logo" />
+              <img className="brand-logo-img" src="assets/images/logo.png" alt="Fox Media Logo" />
               <div className="brand-text">
                 <div className="brand-name">Fox Media</div>
                 <div className="brand-sub">Adobe Site</div>
