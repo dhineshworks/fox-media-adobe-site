@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="status">Loading...</div>
+  <pre id="error" style="color: red; font-weight: bold;"></pre>
+
+  <script>
+    fetch('/index.html')
+      .then(res => res.text())
+      .then(html => {
+        try {
+          document.getElementById('status').innerText = 'Extracting...';
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const codeElement = doc.getElementById('react-app-code');
+          if (!codeElement) {
+            throw new Error('Could not find #react-app-code in index.html');
+          }
+          const code = codeElement.textContent;
+          console.log("Extracted code length:", code.length);
+
+          document.getElementById('status').innerText = 'Compiling...';
+          Babel.transform(code, {
+            presets: [['react', { runtime: 'classic' }]]
+          });
+          document.getElementById('status').innerText = 'Compilation Successful!';
+        } catch (e) {
+          document.getElementById('status').innerText = 'Compilation Failed!';
+          document.getElementById('error').innerText = e.toString() + '\n\n' + e.stack;
+        }
+      })
+      .catch(err => {
+        document.getElementById('status').innerText = 'Fetch failed!';
+        document.getElementById('error').innerText = err.toString();
+      });
+  </script>
+</body>
+</html>

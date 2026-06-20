@@ -1,0 +1,1843 @@
+
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    // ─── TYPES & CONSTANTS ──────────────────────────────────────────────────────
+    const DEFAULT_TEMPLATE = `🎨 Adobe Creative Cloud Yearly Plan Activated ✅
+
+Dear User,
+
+Your Adobe Creative Cloud Yearly Plan has been successfully activated.
+
+Please follow the steps below carefully to set up your account:
+
+🔹 Step-by-Step Instructions
+
+1. Log out from your Adobe account wherever (Chrome Browser, Edge Browser, Safari Browser) it's currently signed in.
+2. Log in again using your registered email ID:
+{{EMAIL}}
+3. Enter your password.
+   * If the password is not accepted, click "Reset your password" and create a new one.
+4. After logging in, follow the process carefully.
+5. Click Aqimo-FuturePoint
+6. Click Move your files to personal cloud storage.
+7. Choose {{TEAM_NAME}} to complete the setup.
+
+📦 Adobe Creative Cloud App Download Link:
+https://creativecloud.adobe.com/apps/download/creative-cloud`;
+
+    const DEFAULT_PRESET = {
+      id: "preset-adobe-cc",
+      name: "Adobe CC Activation",
+      description: "Adobe Creative Cloud Yearly Plan Activation template",
+      icon: "🎨",
+      template: DEFAULT_TEMPLATE,
+      fields: ["EMAIL", "TEAM_NAME"],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      generatedCount: 0,
+    };
+
+    const STORAGE_KEYS = {
+      HISTORY: "fma_history",
+      PRESETS: "fma_presets",
+      THEME: "fma_theme",
+    };
+
+    const WHATSAPP_NUMBER = "9865488886";
+    const WHATSAPP_LINK = `https://wa.me/91${WHATSAPP_NUMBER}?text=Hello%20Fox%20Media,%20I%20am%20contacting%20you%20regarding%20a%20new%20activation.`;
+
+    // ─── UTILITIES ───────────────────────────────────────────────────────────────
+    function generateId() {
+      return `id_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    function validateEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function loadFromStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveToStorage(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch { }
+    }
+
+    // ─── TOAST SYSTEM ────────────────────────────────────────────────────────────
+    function ToastContainer({ toasts, remove }) {
+      return (
+        <div className="toast-container">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.type}`}>
+              <span className="toast-icon">
+                {t.type === "success" ? "✅" : t.type === "error" ? "❌" : "ℹ️"}
+              </span>
+              <span className="toast-msg">{t.message}</span>
+              <button className="toast-close" onClick={() => remove(t.id)}>×</button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    function useToast() {
+      const [toasts, setToasts] = useState([]);
+      const add = useCallback((message, type = "success") => {
+        const id = generateId();
+        setToasts((prev) => [...prev, { id, message, type }]);
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+      }, []);
+      const remove = useCallback((id) => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, []);
+      return { toasts, add, remove };
+    }
+
+    // ─── ICONS ───────────────────────────────────────────────────────────────────
+    const Icon = {
+      Sun: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ),
+      Moon: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+      Copy: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      ),
+      Download: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      ),
+      Trash: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+        </svg>
+      ),
+      Search: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      ),
+      Refresh: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.95" />
+        </svg>
+      ),
+      Zap: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      ),
+      Plus: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      ),
+      Edit: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      ),
+      Duplicate: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15">
+          <rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+        </svg>
+      ),
+      Export: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+      ),
+      Import: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      ),
+      Layers: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
+        </svg>
+      ),
+      History: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 .49-4.95" /><polyline points="12 7 12 12 15 15" />
+        </svg>
+      ),
+      Close: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      ),
+      Shield: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      ),
+      WhatsApp: () => (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.437.002 9.861-4.416 9.863-9.864.001-2.639-1.026-5.122-2.892-6.989-1.866-1.867-4.35-2.893-6.991-2.893-5.44 0-9.866 4.417-9.867 9.866-.001 1.928.498 3.81 1.448 5.416L1.871 20.2l4.776-1.046zm11.367-4.906c-.31-.156-1.834-.905-2.119-1.008-.285-.104-.493-.156-.701.156-.208.312-.807.104-.989.312-.182.208-.364.208-.674.052-.31-.156-1.312-.483-2.498-1.542-.924-.825-1.548-1.844-1.73-2.155-.182-.31-.02-.477.135-.632.14-.139.31-.362.466-.544.156-.182.208-.312.31-.52.104-.208.052-.39-.026-.546-.078-.156-.701-1.687-.961-2.311-.253-.607-.512-.525-.701-.535-.18-.01-.387-.011-.595-.011-.208 0-.547.078-.833.39-.286.312-1.092 1.066-1.092 2.6 0 1.534 1.118 3.016 1.273 3.224.156.208 2.198 3.358 5.326 4.704.744.32 1.325.512 1.777.656.748.238 1.43.204 1.969.124.6-.09 1.834-.751 2.094-1.441.26-.69.26-1.284.182-1.402-.078-.117-.286-.208-.596-.364z" />
+        </svg>
+      )
+    };
+
+    // ─── MODAL COMPONENT ──────────────────────────────────────────────────────────
+    function Modal({ open, onClose, title, children }) {
+      useEffect(() => {
+        if (open) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+        return () => { document.body.style.overflow = ""; };
+      }, [open]);
+      if (!open) return null;
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{title}</h3>
+              <button className="modal-close" onClick={onClose}><Icon.Close /></button>
+            </div>
+            <div className="modal-body">{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── PRESET EDITOR MODAL ──────────────────────────────────────────────────────
+    function PresetEditor({ preset, onSave, onClose }) {
+      const [form, setForm] = useState(
+        preset || {
+          name: "",
+          description: "",
+          icon: "📋",
+          template: "Dear User,\n\n{{EMAIL}}\n{{TEAM_NAME}}",
+          fields: ["EMAIL", "TEAM_NAME"],
+        }
+      );
+      const [rawFields, setRawFields] = useState((form.fields || []).join(", "));
+
+      const handleSave = () => {
+        if (!form.name.trim()) return;
+        const fields = rawFields
+          .split(",")
+          .map((f) => f.trim().toUpperCase().replace(/\s+/g, "_"))
+          .filter(Boolean);
+        onSave({ ...form, fields });
+      };
+
+      return (
+        <div className="preset-editor">
+          <div className="field-row">
+            <label className="field-label">Icon</label>
+            <input
+              className="input-field"
+              style={{ width: 60, textAlign: "center", fontSize: "1.5rem" }}
+              value={form.icon}
+              maxLength={2}
+              onChange={(e) => setForm({ ...form, icon: e.target.value })}
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Preset Name *</label>
+            <input
+              className="input-field"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Adobe CC Activation"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Description</label>
+            <input
+              className="input-field"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Short description"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">
+              Placeholder Fields
+              <span className="field-hint"> (comma-separated, e.g. EMAIL, TEAM_NAME)</span>
+            </label>
+            <input
+              className="input-field"
+              value={rawFields}
+              onChange={(e) => setRawFields(e.target.value)}
+              placeholder="EMAIL, TEAM_NAME"
+            />
+          </div>
+          <div className="field-row">
+            <label className="field-label">Template</label>
+            <textarea
+              className="input-field textarea-field"
+              rows={12}
+              value={form.template}
+              onChange={(e) => setForm({ ...form, template: e.target.value })}
+              placeholder="Use {{FIELD_NAME}} for placeholders"
+            />
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={!form.name.trim()}
+            >
+              Save Preset
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── ANALYTICS CARDS ──────────────────────────────────────────────────────────
+    function AnalyticsBar({ history, presets }) {
+      const total = history.length;
+      const today = history.filter((h) => {
+        const d = new Date(h.createdAt);
+        const now = new Date();
+        return (
+          d.getDate() === now.getDate() &&
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
+        );
+      }).length;
+      const totalPresets = presets.length;
+      const totalGenerated = presets.reduce((a, p) => a + (p.generatedCount || 0), 0);
+
+      const cards = [
+        { label: "Total Generated", value: total, emoji: "📤" },
+        { label: "Today", value: today, emoji: "📅" },
+        { label: "Presets", value: totalPresets, emoji: "🗂️" },
+        { label: "Activations", value: totalGenerated, emoji: "⚡" },
+      ];
+
+      return (
+        <div className="analytics-bar">
+          {cards.map((c) => (
+            <div className="stat-card" key={c.label}>
+              <div className="stat-emoji">{c.emoji}</div>
+              <div className="stat-value">{c.value}</div>
+              <div className="stat-label">{c.label}</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ─── HISTORY PANEL ────────────────────────────────────────────────────────────
+    function HistoryPanel({ history, onDelete, onClear, onUse, onCheckStatus, toast }) {
+      const [search, setSearch] = useState("");
+      const filtered = history.filter(
+        (h) =>
+          h.email.toLowerCase().includes(search.toLowerCase()) ||
+          h.teamName.toLowerCase().includes(search.toLowerCase())
+      );
+
+      const copyMsg = (msg) => {
+        navigator.clipboard.writeText(msg).then(() => toast("Message copied!", "success"));
+      };
+
+      return (
+        <div className="history-panel">
+          <div className="history-header">
+            <h2 className="panel-title">
+              <Icon.History /> History
+            </h2>
+            {history.length > 0 && (
+              <button className="btn btn-ghost btn-sm danger" onClick={onClear}>
+                <Icon.Trash /> Clear All
+              </button>
+            )}
+          </div>
+
+          {history.length > 0 && (
+            <div className="search-wrap">
+              <Icon.Search />
+              <input
+                className="search-input"
+                placeholder="Search by email or team…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="search-clear" onClick={() => setSearch("")}>×</button>
+              )}
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📭</div>
+              <p>{history.length === 0 ? "No messages generated yet." : "No results found."}</p>
+            </div>
+          ) : (
+            <div className="history-list">
+              {filtered.map((h) => (
+                <div className="history-card" key={h.id}>
+                  <div className="history-card-top">
+                    <div className="history-meta">
+                      <span className="history-preset-badge">{h.presetIcon} {h.presetName}</span>
+                      <span className="history-date">{formatDate(h.createdAt)}</span>
+                    </div>
+                    <div className="history-actions">
+                      <button
+                        className="icon-btn"
+                        title="Copy message"
+                        onClick={() => copyMsg(h.message)}
+                      >
+                        <Icon.Copy />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Check Status"
+                        onClick={() => onCheckStatus(h.email)}
+                      >
+                        <Icon.Shield />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title="Use these values"
+                        onClick={() => onUse(h)}
+                      >
+                        <Icon.Refresh />
+                      </button>
+                      <button
+                        className="icon-btn danger"
+                        title="Delete"
+                        onClick={() => onDelete(h.id)}
+                      >
+                        <Icon.Trash />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="history-fields">
+                    <span className="field-chip">✉️ {h.email}</span>
+                    <span className="field-chip">👥 {h.teamName}</span>
+                  </div>
+                  <pre className="history-preview">{h.message.slice(0, 180)}…</pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── PRESETS PAGE ─────────────────────────────────────────────────────────────
+    function PresetsPage({ presets, setPresets, toast }) {
+      const [editModal, setEditModal] = useState(null); // null | "new" | preset
+      const fileInputRef = useRef(null);
+
+      const handleSave = (form) => {
+        if (editModal === "new") {
+          const newPreset = {
+            ...form,
+            id: generateId(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            generatedCount: 0,
+          };
+          setPresets((prev) => [...prev, newPreset]);
+          toast("Preset created!", "success");
+        } else {
+          setPresets((prev) =>
+            prev.map((p) =>
+              p.id === editModal.id
+                ? { ...p, ...form, updatedAt: new Date().toISOString() }
+                : p
+            )
+          );
+          toast("Preset updated!", "success");
+        }
+        setEditModal(null);
+      };
+
+      const handleDuplicate = (preset) => {
+        const dup = {
+          ...preset,
+          id: generateId(),
+          name: preset.name + " (Copy)",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          generatedCount: 0,
+        };
+        setPresets((prev) => [...prev, dup]);
+        toast("Preset duplicated!", "success");
+      };
+
+      const handleDelete = (id) => {
+        if (presets.length <= 1) {
+          toast("At least one preset must remain.", "error");
+          return;
+        }
+        setPresets((prev) => prev.filter((p) => p.id !== id));
+        toast("Preset deleted.", "success");
+      };
+
+      const handleExport = () => {
+        const blob = new Blob([JSON.stringify(presets, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "fox_media_presets.json";
+        a.click();
+        toast("Presets exported!", "success");
+      };
+
+      const handleImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (!Array.isArray(imported)) throw new Error("Invalid format");
+            const merged = [
+              ...presets,
+              ...imported
+                .filter((p) => p.name && p.template)
+                .map((p) => ({
+                  ...p,
+                  id: generateId(),
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  generatedCount: 0,
+                })),
+            ];
+            setPresets(merged);
+            toast(`${imported.length} preset(s) imported!`, "success");
+          } catch {
+            toast("Invalid JSON file.", "error");
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      };
+
+      return (
+        <div className="page-content">
+          <div className="page-header">
+            <div>
+              <h2 className="page-title">Presets</h2>
+              <p className="page-subtitle">Manage your message templates</p>
+            </div>
+            <div className="page-header-actions">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleImport}
+              />
+              <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
+                <Icon.Import /> Import
+              </button>
+              <button className="btn btn-ghost" onClick={handleExport}>
+                <Icon.Export /> Export
+              </button>
+              <button className="btn btn-primary" onClick={() => setEditModal("new")}>
+                <Icon.Plus /> New Preset
+              </button>
+            </div>
+          </div>
+
+          <div className="presets-grid">
+            {presets.map((p) => (
+              <div className="preset-card" key={p.id}>
+                <div className="preset-card-top">
+                  <div className="preset-icon-wrap">{p.icon || "📋"}</div>
+                  <div className="preset-card-actions">
+                    <button className="icon-btn" title="Edit" onClick={() => setEditModal(p)}>
+                      <Icon.Edit />
+                    </button>
+                    <button className="icon-btn" title="Duplicate" onClick={() => handleDuplicate(p)}>
+                      <Icon.Duplicate />
+                    </button>
+                    <button className="icon-btn danger" title="Delete" onClick={() => handleDelete(p.id)}>
+                      <Icon.Trash />
+                    </button>
+                  </div>
+                </div>
+                <h3 className="preset-card-name">{p.name}</h3>
+                <p className="preset-card-desc">{p.description || "No description"}</p>
+                <div className="preset-card-fields">
+                  {(p.fields || []).map((f) => (
+                    <span key={f} className="field-chip">
+                      {`{{${f}}}`}
+                    </span>
+                  ))}
+                </div>
+                <div className="preset-card-footer">
+                  <span>Used {p.generatedCount || 0}×</span>
+                  <span>Updated {formatDate(p.updatedAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Modal
+            open={!!editModal}
+            onClose={() => setEditModal(null)}
+            title={editModal === "new" ? "New Preset" : "Edit Preset"}
+          >
+            <PresetEditor
+              preset={editModal === "new" ? null : editModal}
+              onSave={handleSave}
+              onClose={() => setEditModal(null)}
+            />
+          </Modal>
+        </div>
+      );
+    }
+
+    // ─── HELPER FOR CORS BYPASS API REQUESTS ──────────────────────────────────────
+    const makeRequest = async (url, method = 'GET', body = null) => {
+      // Direct local fallback: if hosted on HTTP, call the local server on 8080 first!
+      let primaryUrl = url;
+      if (url.startsWith('https://reseller.ado-besoft.com/')) {
+        if (window.location.host === 'localhost:8080') {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', '/');
+        } else {
+          primaryUrl = url.replace('https://reseller.ado-besoft.com/', 'http://localhost:8080/');
+        }
+      }
+
+      try {
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(primaryUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("Primary fetch failed, trying CORS proxy fallback...", e);
+      }
+
+      try {
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+        if (body) {
+          options.body = JSON.stringify(body);
+        }
+        const res = await fetch(proxyUrl, options);
+        const data = await res.json().catch(() => null);
+        if (data) {
+          return data;
+        }
+      } catch (e) {
+        console.warn("corsproxy.io failed, trying allorigins...", e);
+      }
+
+      try {
+        if (method === 'GET') {
+          const allOriginsUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+          const res = await fetch(allOriginsUrl);
+          if (res.ok) {
+            const wrapper = await res.json();
+            const data = JSON.parse(wrapper.contents);
+            if (data) {
+              return data;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("AllOrigins fetch failed:", e);
+      }
+
+      return null;
+    };
+
+    const STATUS_LANGUAGES = {
+      en: "English",
+      ta: "தமிழ் (Tamil)",
+      ml: "മലയാളം (Malayalam)",
+      hi: "हिन्दी (Hindi)",
+      zh: "中文 (Chinese)",
+      ja: "日本語 (Japanese)",
+      ko: "한국어 (Korean)"
+    };
+
+    const STATUS_TRANSLATIONS = {
+      en: {
+        title: "Fox Media Check Status",
+        subtitle: "Enter your email to view your Adobe subscription status",
+        emailLabel: "Email Address",
+        emailPlaceholder: "Enter your email",
+        searchButton: "Check Status",
+        searching: "Searching...",
+        organization: "Organization",
+        plan: "Active Plan",
+        duration: "Duration",
+        months: "months",
+        daysRemaining: "Days Remaining",
+        days: "days",
+        status: "Status",
+        activated: "Activated",
+        expires: "Expires",
+        active: "Active",
+        expired: "Expired",
+        expiringSoon: "Expiring Soon",
+        notFound: "No subscription found for this email",
+        notFoundDesc: "Please check your email address or contact support.",
+        instructions: "Instructions",
+        instructionsText: "If you recently received access or your organization was updated, please sign out of all Adobe apps and sign back in with this email. Go to account.adobe.com and select 'Sign out everywhere' if needed.",
+        teamSwitch: "Need to switch teams?",
+        teamSwitchText: "If you see multiple team options, select the organization shown above to access your subscription.",
+        notice: "Important Notice",
+        subscriptionProgress: "Subscription Progress",
+        footer: "For support, contact Fox Media support.",
+        language: "Language",
+        migrationInProgress: "Migration In Progress",
+        migrationSubtitle: "Your account is being upgraded to a new system",
+        queuePosition: "Queue Position",
+        estimatedTime: "Estimated Time",
+        minutes: "min",
+        usersProcessed: "Users Processed",
+        pleaseWait: "Please wait while we complete your migration. This process is automatic.",
+        migrationActive: "MIGRATING"
+      },
+      ta: {
+        title: "Fox Media நிலையைச் சரிபார்",
+        subtitle: "உங்கள் அடோப் சந்தா நிலையை அறிய மின்னஞ்சலை உள்ளிடவும்",
+        emailLabel: "மின்னஞ்சல் முகவரி",
+        emailPlaceholder: "உங்கள் மின்னஞ்சலை உள்ளிடவும்",
+        searchButton: "நிலையைச் சரிபார்",
+        searching: "தேடுகிறது...",
+        organization: "நிறுவனம்",
+        plan: "செயலில் உள்ள திட்டம்",
+        duration: "கால அளவு",
+        months: "மாதங்கள்",
+        daysRemaining: "மீதமுள்ள நாட்கள்",
+        days: "நாட்கள்",
+        status: "நிலை",
+        activated: "செயல்படுத்தப்பட்டது",
+        expires: "காலாவதி தேதி",
+        active: "செயலில் உள்ளது",
+        expired: "காலாவதியானது",
+        expiringSoon: "விரைவில் காலாவதியாகிறது",
+        notFound: "இந்த மின்னஞ்சலில் எந்த சந்தாவும் கண்டறியப்படவில்லை",
+        notFoundDesc: "மின்னஞ்சல் முகவரியைச் சரிபார்க்கவும் அல்லது ஆதரவைத் தொடர்பு கொள்ளவும்.",
+        instructions: "அறிவுறுத்தல்கள்",
+        instructionsText: "சமீபத்தில் உங்களுக்கு அனுமதி கிடைத்திருந்தால் அல்லது உங்கள் நிறுவனம் புதுப்பிக்கப்பட்டிருந்தால், தயவுசெய்து அனைத்து அடோப் ஆப்ஸிலிருந்தும் வெளியேறி, இந்த மின்னஞ்சல் மூலம் மீண்டும் உள்நுழையவும். தேவைப்பட்டால் account.adobe.com பக்கத்திற்குச் சென்று 'Sign out everywhere' என்பதைத் தேர்ந்தெடுக்கவும்.",
+        teamSwitch: "குழுக்களை மாற்ற வேண்டுமா?",
+        teamSwitchText: "ஒன்றிற்கு மேற்பட்ட குழு விருப்பங்களைக் கண்டால், உங்கள் சந்தாவை அணுக மேலே காட்டப்பட்டுள்ள நிறுவனத்தைத் தேர்ந்தெடுக்கவும்.",
+        notice: "முக்கிய அறிவிப்பு",
+        subscriptionProgress: "சந்தா முன்னேற்றம்",
+        footer: "ஆதரவுக்கு, Fox Media ஆதரவை தொடர்பு கொள்ளவும்.",
+        language: "மொழி",
+        migrationInProgress: "தரவு மாற்றம் நடைபெறுகிறது",
+        migrationSubtitle: "உங்கள் கணக்கு புதிய அமைப்பிற்கு மாற்றப்படுகிறது",
+        queuePosition: "வரிசை எண்",
+        estimatedTime: "மதிப்பிடப்பட்ட நேரம்",
+        minutes: "நிமிடம்",
+        usersProcessed: "மாற்றப்பட்ட பயனர்கள்",
+        pleaseWait: "உங்கள் கணக்கு மாற்றம் முடியும் வரை காத்திருக்கவும். இது தானியங்கி செயல்முறையாகும்.",
+        migrationActive: "மாற்றப்படுகிறது"
+      },
+      ml: {
+        title: "Fox Media നില പരിശോധിക്കുക",
+        subtitle: "നിങ്ങളുടെ അഡോബി വരിക്കാരുടെ നില കാണാൻ ഇമെയിൽ നൽകുക",
+        emailLabel: "ഇമെയിൽ വിലാസം",
+        emailPlaceholder: "നിങ്ങളുടെ ഇമെയിൽ നൽകുക",
+        searchButton: "നില പരിശോധിക്കുക",
+        searching: "തിരയുന്നു...",
+        organization: "സംഘടന",
+        plan: "സജീവ പ്ലാൻ",
+        duration: "കാലാവധി",
+        months: "മാസങ്ങൾ",
+        daysRemaining: "ബാക്കിയുള്ള ദിവസങ്ങൾ",
+        days: "ദിവസങ്ങൾ",
+        status: "നില",
+        activated: "സജീവമാക്കി",
+        expires: "കാലഹരണപ്പെടുന്നു",
+        active: "സജീവം",
+        expired: "കാലഹരണപ്പെട്ടു",
+        expiringSoon: "ഉടൻ കാലഹരണപ്പെടും",
+        notFound: "ഈ ഇമെയിലിൽ വരിസംഖ്യയൊന്നും കണ്ടെത്തിയില്ല",
+        notFoundDesc: "ദയവായി ഇമെയിൽ പരിശോധിക്കുക അല്ലെങ്കിൽ പിന്തുണയുമായി ബന്ധപ്പെടുക.",
+        instructions: "നിർദ്ദേശങ്ങൾ",
+        instructionsText: "നിങ്ങൾക്ക് അടുത്തിടെ ആക്സസ് ലഭിക്കുകയോ ഓർഗനൈസേഷൻ അപ്ഡേറ്റ് ചെയ്യപ്പെടുകയോ ചെയ്തിട്ടുണ്ടെങ്കിൽ, എല്ലാ അഡോബി ആപ്പുകളിൽ നിന്നും സൈൻ ഔട്ട് ചെയ്ത് ഈ ഇമെയിൽ ഉപയോഗിച്ച് വീണ്ടും സൈൻ ഇൻ ചെയ്യുക. ആവശ്യമെങ്കിൽ account.adobe.com സന്ദർശിച്ച് 'Sign out everywhere' തിരഞ്ഞെടുക്കുക.",
+        teamSwitch: "ടീമുകൾ മാറേണ്ടതുണ്ടോ?",
+        teamSwitchText: "ഒന്നിലധികം ടീം ഓപ്ഷനുകൾ കാണുകയാണെങ്കിൽ, നിങ്ങളുടെ സബ്സ്ക്രിപ്ഷൻ ആക്സസ് ചെയ്യാൻ മുകളിൽ കാണിച്ചിരിക്കുന്ന ഓർഗനൈസേഷൻ തിരഞ്ഞെടുക്കുക.",
+        notice: "പ്രധാന അറിയിപ്പ്",
+        subscriptionProgress: "സബ്സ്ക്രിപ്ഷൻ പുരോഗതി",
+        footer: "പിന്തുണയ്ക്കായി, ഫോക്സ് മീഡിയ പിന്തുണയുമായി ബന്ധപ്പെടുക.",
+        language: "ഭാഷ",
+        migrationInProgress: "മൈഗ്രേഷൻ പുരോഗതിയിലാണ്",
+        migrationSubtitle: "നിങ്ങളുടെ അക്കൗണ്ട് ഒരു പുതിയ സിസ്റ്റത്തിലേക്ക് അപ്ഗ്രേഡ് ചെയ്യപ്പെടുന്നു",
+        queuePosition: "ക്യൂവിലെ സ്ഥാനം",
+        estimatedTime: "പ്രതീക്ഷിക്കുന്ന സമയം",
+        minutes: "മിനിറ്റ്",
+        usersProcessed: "പ്രോസസ്സ് ചെയ്ത ഉപയോക്താക്കൾ",
+        pleaseWait: "നിങ്ങളുടെ മൈഗ്രേഷൻ പൂർത്തിയാകുന്നതുവരെ ദയവായി കാത്തിരിക്കുക. ഈ പ്രക്രിയ ഓട്ടോമാറ്റിക് ആണ്.",
+        migrationActive: "മൈഗ്രേറ്റിംഗ്"
+      },
+      hi: {
+        title: "Fox Media स्थिति जांचें",
+        subtitle: "अपनी एडोब सब्सक्रिप्शन स्थिति देखने के लिए ईमेल दर्ज करें",
+        emailLabel: "ईमेल पता",
+        emailPlaceholder: "अपना ईमेल दर्ज करें",
+        searchButton: "स्थिति जांचें",
+        searching: "खोज रहे हैं...",
+        organization: "संगठन",
+        plan: "सक्रिय प्लान",
+        duration: "अवधि",
+        months: "महीने",
+        daysRemaining: "शेष दिन",
+        days: "दिन",
+        status: "स्थिति",
+        activated: "सक्रिय किया गया",
+        expires: "समाप्ति तिथि",
+        active: "सक्रिय",
+        expired: "समाप्त",
+        expiringSoon: "जल्द समाप्त होने वाला है",
+        notFound: "इस ईमेल के लिए कोई सब्सक्रिप्शन नहीं मिला",
+        notFoundDesc: "कृपया अपना ईमेल पता जांचें या सहायता से संपर्क करें।",
+        instructions: "निर्देश",
+        instructionsText: "यदि आपको हाल ही में एक्सेस मिला है या आपका संगठन अपडेट किया गया है, तो कृपया सभी एडोब ऐप्स से साइन आउट करें और इस ईमेल के साथ फिर से साइन इन करें। यदि आवश्यक हो तो account.adobe.com पर जाएं और 'Sign out everywhere' चुनें।",
+        teamSwitch: "टीम बदलने की आवश्यकता है?",
+        teamSwitchText: "यदि आप कई टीम विकल्प देखते हैं, तो अपनी सदस्यता तक पहुँचने के लिए ऊपर दिखाए गए संगठन का चयन करें।",
+        notice: "महत्वपूर्ण सूचना",
+        subscriptionProgress: "सब्सक्रिप्शन प्रगति",
+        footer: "सहायता के लिए, फॉक्स मीडिया सहायता से संपर्क करें।",
+        language: "भाषा",
+        migrationInProgress: "माइग्रेशन प्रगति पर है",
+        migrationSubtitle: "आपका खाता एक नए सिस्टम में अपग्रेड किया जा रहा है",
+        queuePosition: "कतार की स्थिति",
+        estimatedTime: "अनुमानित समय",
+        minutes: "मिनट",
+        usersProcessed: "संसाधित उपयोगकर्ता",
+        pleaseWait: "कृपया माइग्रेशन पूरा होने तक प्रतीक्षा करें। यह प्रक्रिया स्वचालित है।",
+        migrationActive: "माइग्रेट हो रहा है"
+      },
+      zh: {
+        title: "查看您的订阅",
+        subtitle: "输入您的电子邮件以查看您的Adobe订阅状态",
+        emailLabel: "电子邮箱",
+        emailPlaceholder: "输入您的电子邮件地址",
+        searchButton: "查看状态",
+        searching: "搜索中...",
+        organization: "组织",
+        plan: "当前计划",
+        duration: "时长",
+        months: "个月",
+        daysRemaining: "剩余天数",
+        days: "天",
+        status: "状态",
+        activated: "激活于",
+        expires: "到期",
+        active: "有效",
+        expired: "已过期",
+        expiringSoon: "即将过期",
+        notFound: "未找到此邮箱的订阅",
+        notFoundDesc: "请检查您的电子邮件地址或联系客服。",
+        instructions: "使用说明",
+        instructionsText: "如果您最近获得了访问权限或您的组织已更新，请退出所有Adobe应用程序，然后使用此电子邮件重新登录。如有需要，请访问account.adobe.com并选择'退出所有设备'。",
+        teamSwitch: "需要切换团队？",
+        teamSwitchText: "如果您看到多个团队选项，请选择上方显示的组织以访问您的订阅。",
+        videoTitle: "如何删除无效的组织？",
+        notice: "重要通知",
+        subscriptionProgress: "订阅进度",
+        footer: "如需支持，请联系 Fox Media 客服。",
+        language: "语言"
+      },
+      ja: {
+        title: "Fox Media サブスクリプション確認",
+        subtitle: "メールアドレスを入力してAdobeサブスクリプションの状態を確認",
+        emailLabel: "メールアドレス",
+        emailPlaceholder: "メールアドレスを入力してください",
+        searchButton: "ステータスを確認",
+        searching: "検索中...",
+        organization: "組織",
+        plan: "アクティブプラン",
+        duration: "期間",
+        months: "ヶ月",
+        daysRemaining: "残り日数",
+        days: "日",
+        status: "ステータス",
+        activated: "有効化",
+        expires: "有効期限",
+        active: "アクティブ",
+        expired: "期限切れ",
+        expiringSoon: "まもなく期限切れ",
+        notFound: "このメールのサブスクリプションが見つかりません",
+        notFoundDesc: "メールアドレスを確認するか、サポートにお問い合わせください。",
+        instructions: "手順",
+        instructionsText: "最近アクセス権を取得した場合、または組織が更新された場合は、すべてのAdobeアプリからサインアウトし、このメールで再度サイン인してください。必要に応じて、account.adobe.comで「すべての場所からサインアウト」を選択してください。",
+        teamSwitch: "チームを切り替える必要がありますか？",
+        teamSwitchText: "複数のチームオプションが表示される場合は、上記の組織を選択してサブスクリプションにアクセスしてください。",
+        videoTitle: "無効な組織を削除する方法は？",
+        notice: "重要なお知らせ",
+        subscriptionProgress: "サブスクリプション進捗",
+        footer: "サポートが必要な場合は、Fox Mediaサポートにお問い合わせください。",
+        language: "言語"
+      },
+      ko: {
+        title: "Fox Media 구독 확인",
+        subtitle: "이메일을 입력하여 Adobe 구독 상태를 확인하세요",
+        emailLabel: "이메일 주소",
+        emailPlaceholder: "이메일을 입력하세요",
+        searchButton: "상태 확인",
+        searching: "검색 중...",
+        organization: "조직",
+        plan: "활성 플랜",
+        duration: "기간",
+        months: "개월",
+        daysRemaining: "남은 일수",
+        days: "일",
+        status: "상태",
+        activated: "활성화",
+        expires: "만료",
+        active: "활성",
+        expired: "만료됨",
+        expiringSoon: "곧 만료",
+        notFound: "이 이메일에 대한 구독을 찾을 수 없습니다",
+        notFoundDesc: "이메일 주소를 확인하거나 고객 지원에 문의하세요.",
+        instructions: "안내",
+        instructionsText: "최근에 액세스 권한을 받았거나 조직이 업데이트된 경우 모든 Adobe 앱에서 로그아웃한 후 이 이메일로 다시 로그인하세요. 필요한 경우 account.adobe.com에서 '모든 곳에서 로그아웃'을 선택하세요.",
+        teamSwitch: "팀을 전환해야 하나요?",
+        teamSwitchText: "여러 team 옵션이 표시되면 위에 표시된 조직을 선택하여 구독에 액세스하십시오.",
+        videoTitle: "잘못된 조직을 삭제하는 방법은?",
+        notice: "중요 공지",
+        subscriptionProgress: "구독 진행률",
+        footer: "지원이 필요하면 Fox Media 지원에 문의하세요.",
+        language: "언어"
+      }
+    };
+
+function StatusCheckPage({ prefill, onClearPrefill, toast }) {
+      const [email, setEmail] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+      const [lang, setLang] = useState("en");
+      const [switchOptions, setSwitchOptions] = useState(null);
+      const [switching, setSwitching] = useState(false);
+      const [switchStatus, setSwitchStatus] = useState(null);
+      const [switchMessage, setSwitchMessage] = useState(null);
+      const [shake, setShake] = useState(false);
+      const [refreshCount, setRefreshCount] = useState(0);
+
+      const t = STATUS_TRANSLATIONS[lang] || STATUS_TRANSLATIONS.en;
+      const isRtl = lang === "ar";
+
+      // Relative date utility
+      const getRelativeTime = (dateStr) => {
+        if (!dateStr) return "";
+        const timeMs = new Date(dateStr).getTime();
+        if (Number.isNaN(timeMs)) return "";
+        const deltaSeconds = Math.max(0, Math.floor((Date.now() - timeMs) / 1000));
+        if (deltaSeconds < 60) return `${deltaSeconds || 1} second${deltaSeconds === 1 ? "" : "s"} ago`;
+        const deltaMinutes = Math.floor(deltaSeconds / 60);
+        if (deltaMinutes < 60) return `${deltaMinutes} minute${deltaMinutes === 1 ? "" : "s"} ago`;
+        const deltaHours = Math.floor(deltaMinutes / 60);
+        if (deltaHours < 24) return `${deltaHours} hour${deltaHours === 1 ? "" : "s"} ago`;
+        const deltaDays = Math.floor(deltaHours / 24);
+        return `${deltaDays} day${deltaDays === 1 ? "" : "s"} ago`;
+      };
+
+      const handleCheckStatus = async (targetEmail) => {
+        const emailToSearch = (targetEmail || email).trim();
+        if (!emailToSearch) return;
+
+        setLoading(true);
+        setError(null);
+        setResult(null);
+        setSwitchOptions(null);
+        setSwitchMessage(null);
+        setSwitchStatus(null);
+        setSwitching(false);
+
+        try {
+          const res = await makeRequest("https://reseller.ado-besoft.com/api/user-status", "POST", { email: emailToSearch });
+          if (res && res.found) {
+            setResult(res);
+            fetchSwitchOptions(res.email || emailToSearch);
+          } else {
+            setError(res && res.error ? res.error : t.notFound);
+          }
+        } catch (e) {
+          setError("Network error. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchSwitchOptions = async (emailToSearch) => {
+        try {
+          const res = await makeRequest("https://reseller.ado-besoft.com/api/credits-pool/public/org-switch/options", "POST", { email: emailToSearch });
+          if (res && res.available) {
+            setSwitchOptions(res);
+          }
+        } catch (e) {
+          console.warn("Failed to fetch switch options:", e);
+        }
+      };
+
+      const triggerSwitchOrg = async (retryCount = 0) => {
+        if (!result || !result.email) return;
+        const retryDelays = [2000, 3000, 5000, 8000, 12000, 20000];
+        setSwitchStatus("inviting");
+
+        try {
+          const res = await makeRequest("https://reseller.ado-besoft.com/api/credits-pool/public/org-switch", "POST", { email: result.email.trim() });
+          if (res && res.success) {
+            setSwitchMessage(res.message || "You have been moved to the new organization.");
+            setSwitchOptions(null);
+            setSwitching(false);
+            setSwitchStatus(null);
+            // Refresh status
+            handleCheckStatus(result.email);
+            return;
+          }
+          throw Object.assign(new Error(res && res.error ? res.error : "switch_failed"));
+        } catch (e) {
+          if (retryCount < retryDelays.length) {
+            setSwitchStatus("retry-failed");
+            setShake(true);
+            setTimeout(() => setShake(false), 500);
+            setTimeout(() => setSwitchStatus("inviting"), 1200);
+            const delay = e.status === 429 ? 3 * retryDelays[retryCount] : retryDelays[retryCount];
+            const jitterDelay = Math.round(delay * (0.85 + 0.3 * Math.random()));
+            setTimeout(() => triggerSwitchOrg(retryCount + 1), jitterDelay);
+          } else {
+            setSwitching(false);
+            setSwitchStatus(null);
+            setSwitchOptions(null);
+            setError("Switch failed: " + (e.message || "Max retries exceeded"));
+          }
+        }
+      };
+
+      const handleSwitch = () => {
+        if (result && result.email && !switching) {
+          setSwitching(true);
+          setSwitchMessage(null);
+          triggerSwitchOrg(0);
+        }
+      };
+
+      // Initial check from prefill email
+      useEffect(() => {
+        if (prefill && prefill.trim()) {
+          setEmail(prefill.trim());
+          handleCheckStatus(prefill.trim());
+          onClearPrefill();
+        }
+      }, [prefill]);
+
+      // Auto-refresh in the background every 20 seconds if result is present and we're not actively switching
+      useEffect(() => {
+        if (!result || !result.email || switchMessage || switching) return;
+        const interval = setInterval(() => {
+          handleCheckStatus(result.email);
+          setRefreshCount(prev => prev + 1);
+        }, 20000);
+        return () => clearInterval(interval);
+      }, [result, switchMessage, switching]);
+
+      const getStatusColor = (status) => {
+        switch (status) {
+          case 'active': return '#10B981';
+          case 'expiring-soon': return '#F59E0B';
+          case 'expired': return '#EF4444';
+          case 'migrating': return '#6366F1';
+          default: return '#6B7280';
+        }
+      };
+
+      const getBadgeClass = (status) => {
+        switch (status) {
+          case 'active': return 'status-checker-badge-active';
+          case 'expired': return 'status-checker-badge-expired';
+          case 'expiring-soon': return 'status-checker-badge-soon';
+          case 'migrating': return 'status-checker-badge-migrating';
+          default: return '';
+        }
+      };
+
+      const formatStatusText = (status) => {
+        switch (status) {
+          case 'active': return t.active;
+          case 'expiring-soon': return t.expiringSoon;
+          case 'expired': return t.expired;
+          case 'migrating': return 'Migrating';
+          default: return status;
+        }
+      };
+
+      return (
+        <div className="page-content" style={{ direction: isRtl ? 'rtl' : 'ltr' }}>
+          <div className="status-checker-container">
+            {/* Language Selection */}
+            <div className="status-checker-lang-wrap">
+              <select className="status-checker-lang-select" value={lang} onChange={(e) => setLang(e.target.value)}>
+                {Object.entries(STATUS_LANGUAGES).map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Header */}
+            <header className="status-checker-header">
+              <img className="status-checker-logo" src="logo 2.png" alt="Fox Media Logo" />
+              <h1 className="status-checker-title">{t.title}</h1>
+              <p className="status-checker-subtitle">{t.subtitle}</p>
+            </header>
+
+            {/* Main status checker card */}
+            <div className="card">
+              <form onSubmit={(e) => { e.preventDefault(); handleCheckStatus(); }}>
+                <div className="field-row">
+                  <label className="field-label">{t.emailLabel || "Email Address"}</label>
+                  <input
+                    className="input-field"
+                    type="email"
+                    placeholder={t.emailPlaceholder}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <div className="form-actions" style={{ marginTop: '16px' }}>
+                  <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center' }} disabled={loading || !email.trim()}>
+                    {loading ? t.searching : `🔍 ${t.searchButton}`}
+                  </button>
+                </div>
+              </form>
+
+              {/* Error container */}
+              {error && (
+                <div className="status-error" style={{ marginTop: '24px', padding: '16px 20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderLeft: '4px solid #EF4444', borderRadius: 'var(--radius-sm)', color: '#FCA5A5', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                  <strong>❌ {error}</strong>
+                  <p style={{ marginTop: '8px', fontSize: '0.82rem', opacity: 0.9 }}>{t.notFoundDesc}</p>
+                </div>
+              )}
+
+              {/* Loader */}
+              {loading && !result && (
+                <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                  <div className="status-checker-spinner-loader"></div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text3)' }}>Querying server...</p>
+                </div>
+              )}
+
+              {/* Results Render */}
+              {result && !loading && (
+                <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Status Badge */}
+                  <div className="status-checker-badge-row">
+                    <span className={`status-checker-badge ${getBadgeClass(result.status)}`}>
+                      {formatStatusText(result.status)}
+                    </span>
+                  </div>
+
+                  {/* Switch Org Successful Alert */}
+                  {switchMessage && (
+                    <div className="status-checker-switch-success">
+                      <div className="status-checker-switch-success-title">
+                        <span>✅</span>
+                        <span>Organization Switched Successfully</span>
+                      </div>
+                      <p className="status-checker-switch-success-body">{switchMessage}</p>
+                    </div>
+                  )}
+
+                  {/* Migration Queue Layout if migration exists */}
+                  {result.migration && (
+                    <div className="status-checker-migration-card">
+                      <div className="status-checker-migration-badge-wrap">
+                        <span className="status-checker-migration-badge">
+                          <span className="status-checker-migration-blink-dot"></span>
+                          {t.migrationActive || "MIGRATING"}
+                        </span>
+                      </div>
+                      <h3 className="status-checker-migration-title">
+                        🔄 {t.migrationInProgress || "Migration In Progress"}
+                      </h3>
+                      <p className="status-checker-migration-subtitle">
+                        {t.migrationSubtitle || "Your account is being upgraded to a new system"}
+                      </p>
+                      
+                      <div className="status-checker-migration-grid">
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.queuePosition || "Queue Position"}</div>
+                          <div className="status-checker-migration-metric-val">#{result.migration.queuePosition}</div>
+                        </div>
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.estimatedTime || "Estimated Time"}</div>
+                          <div className="status-checker-migration-metric-val">~{result.migration.estimatedMinutesLeft} {t.minutes || "min"}</div>
+                        </div>
+                        <div className="status-checker-migration-metric-box">
+                          <div className="status-checker-migration-metric-label">{t.usersProcessed || "Users Processed"}</div>
+                          <div className="status-checker-migration-metric-val" style={{ fontSize: '1.1rem', paddingTop: '4px' }}>
+                            {result.migration.migratedCount}
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>/{result.migration.totalUsers}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="status-checker-migration-progress-wrap">
+                        <div className="status-checker-migration-progress-track">
+                          <div
+                            className="status-checker-migration-progress-bar"
+                            style={{ width: `${Math.round((result.migration.migratedCount / result.migration.totalUsers) * 100) || 0}%` }}
+                          ></div>
+                        </div>
+                        <div className="status-checker-migration-progress-label">
+                          {Math.round((result.migration.migratedCount / result.migration.totalUsers) * 100) || 0}% complete
+                        </div>
+                      </div>
+
+                      <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', textAlign: 'center', margin: 0 }}>
+                        💡 {t.pleaseWait || "Please wait while we complete your migration. This process is automatic."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Details box */}
+                  <div className="status-checker-details-box">
+                    <div className="status-checker-detail-item">
+                      <div className="status-checker-detail-icon">🏢</div>
+                      <div className="status-checker-detail-content">
+                        <div className="status-checker-detail-label">{t.organization}</div>
+                        <div className="status-checker-detail-val" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>{result.organization?.name || "None"}</span>
+                          {result.organizationStatus?.status === 'inactive' && !switchMessage && (
+                            <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#EF4444', color: 'white', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase' }}>Inactive</span>
+                          )}
+                        </div>
+                        {result.teamChange?.changedAt && (
+                          <div style={{ marginTop: '6px', fontSize: '0.78rem', color: 'var(--text3)', lineHeight: '1.4' }}>
+                            <strong>Team changed {getRelativeTime(result.teamChange.changedAt)}</strong>
+                            {result.teamChange.previousName && result.teamChange.currentName && (
+                              <span> from {result.teamChange.previousName} to {result.teamChange.currentName}</span>
+                            )}
+                          </div>
+                        )}
+                        {result.lastTransfer && (
+                          <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--bg3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              {result.lastTransfer.oldOrganizationName === result.lastTransfer.newOrganizationName ? (
+                                <React.Fragment>
+                                  <span style={{ color: '#EF4444', fontWeight: '500' }}>del -</span>
+                                  <span style={{ textDecoration: 'line-through', color: 'var(--text3)' }}>{result.lastTransfer.oldOrganizationName}</span>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text3)', fontStyle: 'italic' }}>(old)</span>
+                                  <span style={{ color: 'var(--text3)' }}>➔</span>
+                                  <span style={{ fontWeight: '600' }}>{result.lastTransfer.newOrganizationName}</span>
+                                  <span style={{ fontSize: '0.65rem', color: '#10B981', fontStyle: 'italic' }}>(new)</span>
+                                </React.Fragment>
+                              ) : (
+                                <React.Fragment>
+                                  <span style={{ textDecoration: 'line-through', color: 'var(--text3)' }}>{result.lastTransfer.oldOrganizationName}</span>
+                                  <span style={{ color: 'var(--text3)' }}>➔</span>
+                                  <span style={{ fontWeight: '600' }}>{result.lastTransfer.newOrganizationName}</span>
+                                </React.Fragment>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text3)' }}>
+                              Changed: {new Date(result.lastTransfer.date).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="status-checker-detail-item">
+                      <div className="status-checker-detail-icon">🎨</div>
+                      <div className="status-checker-detail-content">
+                        <div className="status-checker-detail-label">{t.plan}</div>
+                        <div className="status-checker-product-list">
+                          {(result.products || []).map((prod, idx) => (
+                            <span key={idx} className="status-checker-product-pill">{prod}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duration info */}
+                  {result.showExpirationInfo && result.daysRemaining !== undefined && (
+                    <div className="status-checker-metrics-grid">
+                      <div className="status-checker-metric-card">
+                        <div className="status-checker-detail-label">{t.duration}</div>
+                        <div className="status-checker-metric-val">{result.durationLabel || `${result.duration} ${t.months}`}</div>
+                      </div>
+                      <div className="status-checker-metric-card" style={{ borderLeft: `4px solid ${getStatusColor(result.status)}` }}>
+                        <div className="status-checker-detail-label">{t.daysRemaining}</div>
+                        <div className="status-checker-metric-val" style={{ color: getStatusColor(result.status) }}>{result.daysRemaining > 0 ? result.daysRemaining : 0}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subscription progress bar */}
+                  {result.showExpirationInfo && result.activatedAt && result.expiresAt && (
+                    <div className="status-checker-progress-bar-wrap">
+                      <div className="status-checker-progress-meta">
+                        <span>{t.subscriptionProgress} ({result.progressPercent || 0}%)</span>
+                      </div>
+                      <div className="status-checker-progress-track">
+                        <div className="status-checker-progress-bar" style={{ width: `${result.progressPercent || 0}%`, background: `linear-gradient(90deg, var(--primary) 0%, ${getStatusColor(result.status)} 100%)` }}></div>
+                      </div>
+                      <div className="status-checker-progress-meta" style={{ marginTop: '2px' }}>
+                        <span>{t.activated}: {new Date(result.activatedAt).toLocaleDateString()}</span>
+                        <span>{t.expires}: {new Date(result.expiresAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Organization switch option (Org Swap Button UI) */}
+                  {switchOptions && switchOptions.available && (
+                    <div className="status-checker-switch-cta-box">
+                      <div className="status-checker-switch-highlight-box">
+                        <span style={{ fontSize: '18px' }}>🔄</span>
+                        <div style={{ flex: 1 }}>
+                          <div className="status-checker-switch-highlight-label">Available Active Organization:</div>
+                          <div className="status-checker-switch-highlight-value">{switchOptions.targetOrgName}</div>
+                        </div>
+                      </div>
+
+                      {switching ? (
+                        <div className={`status-checker-switch-progress-text ${shake ? 'status-checker-shake' : ''}`}>
+                          <span className="status-checker-spinner-small"></span>
+                          <span style={{ fontSize: '0.85rem' }}>
+                            {switchStatus === "retry-failed" ? "Connection failed, retrying..." : `Switching to ${switchOptions.targetOrgName || "active profile"}...`}
+                          </span>
+                        </div>
+                      ) : (
+                        <button className="status-checker-btn-switch-org" onClick={handleSwitch} disabled={switchOptions.cooldownActive}>
+                          {switchOptions.cooldownActive ? "Cooldown Active — please wait" : "🔄 Press here to transfer to active organization"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* If the reseller has orgStatus message */}
+                  {result.organizationStatus?.message && result.organizationStatus?.status !== 'inactive' && (
+                    <div className="status-checker-instructions-card" style={{ borderLeftColor: getStatusColor(result.organizationStatus.status) }}>
+                      <div className="status-checker-instructions-title" style={{ color: getStatusColor(result.organizationStatus.status) }}>
+                        ⚙️ Team Status: {result.organizationStatus.label || result.organizationStatus.status}
+                      </div>
+                      <p className="status-checker-instructions-desc" style={{ margin: 0 }}>{result.organizationStatus.message}</p>
+                      {result.organizationStatus.lastCheckedAt && (
+                        <div style={{ color: 'var(--text3)', fontSize: '0.68rem', marginTop: '6px' }}>
+                          Checked {getRelativeTime(result.organizationStatus.lastCheckedAt)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Activation instructions */}
+                  <div className="status-checker-instructions-card">
+                    <div className="status-checker-instructions-title">💡 Adobe Activation Instructions</div>
+                    <div className="status-checker-instructions-desc">
+                      <ol>
+                        <li>Open <strong>adobe.com</strong> in your browser.</li>
+                        <li>Sign out from any account currently logged in.</li>
+                        <li>Log back in using the registered email address shown above: <strong>{result.email || email}</strong>.</li>
+                        <li>If prompted to select a profile, select the organization: <strong>{result.organization?.name || "SOFT SUAVE TECHNOLOGIES PVT LTD"}</strong>.</li>
+                        <li>If activation fails or the profile is not shown, click the "Transfer to active organization" button above.</li>
+                      </ol>
+                    </div>
+                  </div>
+
+                  {/* Video Tutorial Card */}
+                  <div className="status-checker-video-card">
+                    <div className="status-checker-video-header">🎬 How to activate your subscription</div>
+                    <div className="status-checker-video-iframe-wrap">
+                      <iframe
+                        src="https://odysee.com/$/embed/Clean-up-invalid-Adobe-organizations:cc79a3cb61"
+                        title="How to activate your subscription"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <footer style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.8rem', color: 'var(--text3)' }}>
+              <p>{t.footer}</p>
+            </footer>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── BULK SEARCH PAGE ─────────────────────────────────────────────────────────
+    function BulkSearchPage({ toast }) {
+      return (
+        <div className="page-content" style={{ height: 'calc(100vh - 80px)', padding: 0 }}>
+          <iframe 
+            src="https://reseller.ado-besoft.com/bulk-status"
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            title="Bulk Subscription Search"
+          />
+        </div>
+      );
+    }
+    // ─── GENERATOR PAGE ────────────────────────────────────────────────────────────
+    function GeneratorPage({ presets, setPresets, history, setHistory, toast, prefill }) {
+      const [selectedPresetId, setSelectedPresetId] = useState(presets[0]?.id || "");
+      const [fields, setFields] = useState({});
+      const [generated, setGenerated] = useState("");
+      const [errors, setErrors] = useState({});
+      const [copied, setCopied] = useState(false);
+
+      const preset = presets.find((p) => p.id === selectedPresetId) || presets[0];
+
+      // Prefill from history entry
+      useEffect(() => {
+        if (prefill) {
+          setSelectedPresetId(prefill.presetId || presets[0]?.id || "");
+          setFields({ EMAIL: prefill.email || "", TEAM_NAME: prefill.teamName || "" });
+          setGenerated(prefill.message || "");
+        }
+      }, [prefill]);
+
+      // When preset changes, reset field values
+      useEffect(() => {
+        if (!preset) return;
+        const newFields = {};
+        preset.fields.forEach((f) => {
+          newFields[f] = fields[f] || "";
+        });
+        setFields(newFields);
+        setErrors({});
+        setGenerated("");
+      }, [selectedPresetId]);
+
+      const validate = () => {
+        const errs = {};
+        preset.fields.forEach((f) => {
+          const val = (fields[f] || "").trim();
+          if (!val) {
+            errs[f] = `${f.replace(/_/g, " ")} is required`;
+          } else if (f === "EMAIL" && !validateEmail(val)) {
+            errs[f] = "Enter a valid email address";
+          } else if (val.length < 2) {
+            errs[f] = "Must be at least 2 characters";
+          }
+        });
+        return errs;
+      };
+
+      const handleGenerate = () => {
+        const errs = validate();
+        if (Object.keys(errs).length) {
+          setErrors(errs);
+          toast("Please fix the errors before generating.", "error");
+          return;
+        }
+        setErrors({});
+
+        let msg = preset.template;
+        preset.fields.forEach((f) => {
+          msg = msg.split(`{{${f}}}`).join((fields[f] || "").trim());
+        });
+        setGenerated(msg);
+
+        // Save to history
+        const entry = {
+          id: generateId(),
+          presetId: preset.id,
+          presetName: preset.name,
+          presetIcon: preset.icon || "📋",
+          email: fields.EMAIL || Object.values(fields)[0] || "",
+          teamName: fields.TEAM_NAME || Object.values(fields)[1] || "",
+          message: msg,
+          createdAt: new Date().toISOString(),
+        };
+        setHistory((prev) => [entry, ...prev].slice(0, 200));
+
+        // Update preset count
+        setPresets((prev) =>
+          prev.map((p) =>
+            p.id === preset.id
+              ? { ...p, generatedCount: (p.generatedCount || 0) + 1 }
+              : p
+          )
+        );
+
+        toast("Message generated successfully!", "success");
+      };
+
+      const handleCopy = () => {
+        if (!generated) return;
+        navigator.clipboard.writeText(generated).then(() => {
+          setCopied(true);
+          toast("Copied to clipboard!", "success");
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+
+      const handleDownload = () => {
+        if (!generated) return;
+        const blob = new Blob([generated], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `activation_${Date.now()}.txt`;
+        a.click();
+        toast("Downloaded!", "success");
+      };
+
+      const handleReset = () => {
+        const empty = {};
+        preset.fields.forEach((f) => { empty[f] = ""; });
+        setFields(empty);
+        setGenerated("");
+        setErrors({});
+        toast("Form cleared.", "success");
+      };
+
+      const fieldLabel = (f) => {
+        if (f === "EMAIL") return "Customer Email ID";
+        if (f === "TEAM_NAME") return "Team Name";
+        return f.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      };
+
+      const charCount = generated.length;
+
+      return (
+        <div className="page-content">
+          <div className="generator-layout">
+            {/* Left: Form */}
+            <div className="gen-form-col">
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Generate Message</h2>
+                  <p className="card-subtitle">Fill in the fields to generate your activation message</p>
+                </div>
+
+                {/* Preset Selector */}
+                <div className="field-row">
+                  <label className="field-label">Preset</label>
+                  <div className="select-wrap">
+                    <select
+                      className="select-field"
+                      value={selectedPresetId}
+                      onChange={(e) => setSelectedPresetId(e.target.value)}
+                    >
+                      {presets.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.icon} {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Dynamic Fields */}
+                {preset &&
+                  preset.fields.map((f) => (
+                    <div className="field-row" key={f}>
+                      <label className="field-label">
+                        {fieldLabel(f)} <span className="required">*</span>
+                      </label>
+                      <input
+                        className={`input-field${errors[f] ? " input-error" : ""}`}
+                        type={f === "EMAIL" ? "email" : "text"}
+                        placeholder={
+                          f === "EMAIL"
+                            ? "customer@example.com"
+                            : f === "TEAM_NAME"
+                              ? "e.g. My Creative Team"
+                              : `Enter ${fieldLabel(f)}`
+                        }
+                        value={fields[f] || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFields({ ...fields, [f]: val });
+                          if (errors[f]) setErrors({ ...errors, [f]: "" });
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleGenerate(); }}
+                      />
+                      {errors[f] && <span className="error-msg">{errors[f]}</span>}
+                    </div>
+                  ))}
+
+                <div className="form-actions">
+                  <button className="btn btn-ghost" onClick={handleReset}>
+                    <Icon.Refresh /> Reset
+                  </button>
+                  <button className="btn btn-primary btn-generate" onClick={handleGenerate}>
+                    <Icon.Zap /> Generate
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Preview */}
+            <div className="gen-preview-col">
+              <div className="card preview-card">
+                <div className="card-header preview-header">
+                  <div>
+                    <h2 className="card-title">Message Preview</h2>
+                    {generated && (
+                      <span className="char-count">{charCount} characters</span>
+                    )}
+                  </div>
+                  {generated && (
+                    <div className="preview-actions">
+                      <button
+                        className={`btn ${copied ? "btn-success" : "btn-outline"} btn-sm`}
+                        onClick={handleCopy}
+                      >
+                        <Icon.Copy /> {copied ? "Copied!" : "Copy"}
+                      </button>
+                      <button className="btn btn-outline btn-sm" onClick={handleDownload}>
+                        <Icon.Download /> TXT
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {generated ? (
+                  <pre className="message-preview">{generated}</pre>
+                ) : (
+                  <div className="preview-empty">
+                    <div className="preview-empty-icon">✉️</div>
+                    <p>Fill in the fields and click <strong>Generate</strong> to preview your message here.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Template Preview */}
+              {!generated && preset && (
+                <div className="card template-card">
+                  <div className="card-header">
+                    <h3 className="card-title" style={{ fontSize: "0.9rem" }}>Template Preview</h3>
+                  </div>
+                  <pre className="template-preview">{preset.template}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── ROOT APP ─────────────────────────────────────────────────────────────────
+    function App() {
+      const { toasts, add: addToast, remove: removeToast } = useToast();
+
+      const [theme, setTheme] = useState(() => loadFromStorage(STORAGE_KEYS.THEME, "dark"));
+      const [page, setPage] = useState("generator"); // "generator" | "presets" | "history" | "status" | "bulk"
+      const [presets, setPresets] = useState(() =>
+        loadFromStorage(STORAGE_KEYS.PRESETS, [DEFAULT_PRESET])
+      );
+      const [history, setHistory] = useState(() =>
+        loadFromStorage(STORAGE_KEYS.HISTORY, [])
+      );
+      const [prefill, setPrefill] = useState(null);
+      const [statusPrefillEmail, setStatusPrefillEmail] = useState(null);
+      const [mobileNav, setMobileNav] = useState(false);
+
+      // Persist values to localStorage
+      useEffect(() => { saveToStorage(STORAGE_KEYS.PRESETS, presets); }, [presets]);
+      useEffect(() => { saveToStorage(STORAGE_KEYS.HISTORY, history); }, [history]);
+      useEffect(() => { saveToStorage(STORAGE_KEYS.THEME, theme); }, [theme]);
+
+      // Apply theme HTML attribute
+      useEffect(() => {
+        document.documentElement.setAttribute("data-theme", theme);
+      }, [theme]);
+
+      const handleUseHistory = (entry) => {
+        setPrefill(entry);
+        setPage("generator");
+        setMobileNav(false);
+      };
+
+
+      const handleDeleteHistory = (id) => {
+        setHistory((prev) => prev.filter((h) => h.id !== id));
+        addToast("Entry deleted.", "success");
+      };
+
+      const handleClearHistory = () => {
+        setHistory([]);
+        addToast("History cleared.", "success");
+      };
+
+      const navItems = [
+        { id: "generator", label: "Generator", icon: <Icon.Zap /> },
+        { id: "presets", label: "Presets", icon: <Icon.Layers /> },
+        { id: "status", label: "Check Status", icon: <Icon.Shield /> },
+        { id: "bulk", label: "Bulk Search", icon: <Icon.Search /> },
+        { id: "history", label: "History", icon: <Icon.History /> },
+      ];
+
+      return (
+        <div className="app-shell">
+          <ToastContainer toasts={toasts} remove={removeToast} />
+
+          {/* Sidebar */}
+          <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
+            <div className="sidebar-brand">
+              <img className="brand-logo-img" src="logo.png" alt="Fox Media Logo" />
+              <div className="brand-text">
+                <div className="brand-name">Fox Media</div>
+                <div className="brand-sub">Adobe Site</div>
+              </div>
+            </div>
+
+            <nav className="sidebar-nav">
+              {navItems.map((n) => (
+                <button
+                  key={n.id}
+                  className={`nav-item ${page === n.id ? "nav-item-active" : ""}`}
+                  onClick={() => { setPage(n.id); setMobileNav(false); prefill && setPrefill(null); }}
+                >
+                  <span className="nav-icon">{n.icon}</span>
+                  <span className="nav-label">{n.label}</span>
+                  {n.id === "history" && history.length > 0 && (
+                    <span className="nav-badge">{history.length > 99 ? "99+" : history.length}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+
+            {/* Glowing WhatsApp Contact Banner */}
+            <div className="sidebar-cta">
+              <div className="cta-title">New Activation?</div>
+              <div className="cta-desc">Need a new plan license or help with activation? Contact us now!</div>
+              <a
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-whatsapp"
+              >
+                <Icon.WhatsApp /> Contact WhatsApp
+              </a>
+            </div>
+
+            <div className="sidebar-footer">
+              <AnalyticsBar history={history} presets={presets} />
+            </div>
+          </aside>
+
+          {/* Mobile navigation backdrop overlay */}
+          {mobileNav && (
+            <div className="mobile-overlay" onClick={() => setMobileNav(false)} />
+          )}
+
+          {/* Main Area */}
+          <main className="main-area">
+            <header className="topbar">
+              <button className="mobile-menu-btn" onClick={() => setMobileNav(!mobileNav)}>
+                ☰
+              </button>
+              <div className="topbar-title">
+                {navItems.find((n) => n.id === page)?.label}
+              </div>
+              <div className="topbar-actions">
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="topbar-whatsapp-btn"
+                  title="Contact WhatsApp for new activations"
+                >
+                  <Icon.WhatsApp />
+                  <span>New Activation</span>
+                </a>
+                <button
+                  className="theme-toggle"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+                </button>
+              </div>
+            </header>
+
+            <div className="main-content">
+              {page === "generator" && (
+                <GeneratorPage
+                  presets={presets}
+                  setPresets={setPresets}
+                  history={history}
+                  setHistory={setHistory}
+                  toast={addToast}
+                  prefill={prefill}
+                />
+              )}
+              {page === "presets" && (
+                <PresetsPage presets={presets} setPresets={setPresets} toast={addToast} />
+              )}
+              {page === "bulk" && (
+                <BulkSearchPage
+                  toast={addToast}
+                />
+              )}
+              {page === "status" && (
+                <StatusCheckPage
+                  prefill={statusPrefillEmail}
+                  onClearPrefill={() => setStatusPrefillEmail(null)}
+                  toast={addToast}
+                />
+              )}
+              {page === "history" && (
+                <HistoryPanel
+                  history={history}
+                  onDelete={handleDeleteHistory}
+                  onClear={handleClearHistory}
+                  onUse={handleUseHistory}
+                  onCheckStatus={(email) => {
+                    setStatusPrefillEmail(email);
+                    setPage("status");
+                  }}
+                  toast={addToast}
+                />
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // Render the App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  
